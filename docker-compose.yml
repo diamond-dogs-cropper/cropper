@@ -1,0 +1,72 @@
+name: cropper
+
+services:
+  nginx:
+    image: nginx:1.29-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cropper}:${POSTGRES_PASSWORD:-cropper}@postgres:5432/${POSTGRES_DB:-cropper}
+      MINIO_ENDPOINT: storage:9000
+      MINIO_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-cropper}
+      MINIO_SECRET_KEY: ${STORAGE_SECRET_KEY:-cropper-secret}
+      MINIO_BUCKET: logos
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cropper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cropper}
+      POSTGRES_DB: ${POSTGRES_DB:-cropper}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      retries: 15
+    restart: unless-stopped
+
+  storage:
+    image: rustfs/rustfs:1.0.1
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-cropper}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_KEY:-cropper-secret}
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9000/health/ready"]
+      interval: 2s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  storage-data:
