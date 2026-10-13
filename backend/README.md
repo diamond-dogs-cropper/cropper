@@ -1,10 +1,10 @@
-# cropper-backend
+# backend
 
 Бэкенд Cropper: FastAPI, PostgreSQL, MinIO.
 
 ## Запуск
 
-Нужны Python 3.12+, uv, PostgreSQL и MinIO.
+Команды выполняются из папки `backend/`. Нужны Python 3.12+, uv, PostgreSQL и MinIO.
 
 ```bash
 uv sync
