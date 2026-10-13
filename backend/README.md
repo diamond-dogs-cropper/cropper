@@ -13,7 +13,7 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
-`/health` проверяет базу и MinIO, Swagger на `/docs`.
+`/api/health` проверяет базу и хранилище, Swagger на `/api/docs`.
 
 ## Настройки
 

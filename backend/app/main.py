@@ -14,6 +14,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="Cropper", lifespan=lifespan)
+app = FastAPI(
+    title="Cropper",
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url=None,
+    openapi_url="/api/openapi.json",
+)
 register_error_handlers(app)
-app.include_router(health.router)
+app.include_router(health.router, prefix="/api")
