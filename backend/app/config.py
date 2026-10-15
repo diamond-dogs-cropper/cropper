@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     minio_secret_key: str
     minio_bucket: str = "logos"
     minio_secure: bool = False
+    session_lifetime_days: int = 30
+    session_cookie_secure: bool = False
 
 
 settings = Settings()
