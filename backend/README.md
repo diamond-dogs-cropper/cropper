@@ -13,7 +13,7 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
-`/api/health` проверяет базу и хранилище, Swagger на `/api/docs`.
+`/api/health` проверяет базу и хранилище, Swagger на `/api/docs`, ReDoc на `/api/redoc`.
 
 ## Настройки
 
@@ -26,4 +26,4 @@ uv run alembic revision --autogenerate -m "add users"
 uv run alembic upgrade head
 ```
 
-Новые модели импортируйте в `migrations/env.py`, иначе автогенерация их не увидит.
+Новые модели добавляйте в `app/models/__init__.py`, иначе автогенерация их не увидит.
