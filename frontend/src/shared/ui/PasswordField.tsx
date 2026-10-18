@@ -18,6 +18,7 @@ export function PasswordField({ autoComplete, hint, id, label, name }: PasswordF
         <input
           autoComplete={autoComplete}
           id={id}
+          maxLength={128}
           minLength={8}
           name={name}
           placeholder="••••••••••••"

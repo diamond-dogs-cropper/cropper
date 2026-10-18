@@ -1,8 +1,39 @@
-import { Link } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
+import { getAuthErrorMessage } from '../../../features/auth/lib/authError'
+import { getSafeRedirect } from '../../../features/auth/lib/getSafeRedirect'
+import { useAuth } from '../../../features/auth/model/useAuth'
 import { PasswordField } from '../../../shared/ui/PasswordField'
 
 export function Component() {
+  const { login } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, setIsPending] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (isPending) return
+
+    setError(null)
+    setIsPending(true)
+
+    const formData = new FormData(event.currentTarget)
+
+    try {
+      await login({
+        email: String(formData.get('email')),
+        password: String(formData.get('password')),
+      })
+      navigate(getSafeRedirect(location.search, routePaths.templates), { replace: true })
+    } catch (loginError) {
+      setError(getAuthErrorMessage(loginError))
+      setIsPending(false)
+    }
+  }
+
   return (
     <section className="auth-page" aria-labelledby="login-title">
       <div className="auth-card">
@@ -10,7 +41,7 @@ export function Component() {
         <p className="auth-card__lead">
           Создавайте шаблоны и готовьте логотипы в едином формате.
         </p>
-        <form className="auth-form">
+        <form className="auth-form" onSubmit={(event) => void handleSubmit(event)}>
           <label className="field" htmlFor="login-email">
             <span className="field__label">Электронная почта</span>
             <input
@@ -28,16 +59,15 @@ export function Component() {
             label="Пароль"
             name="password"
           />
-          <div className="auth-form__options">
-            <label className="checkbox">
-              <input name="remember" type="checkbox" />
-              <span>Запомнить меня</span>
-            </label>
-            <span className="disabled-link" title="Маршрут будет добавлен вместе с восстановлением пароля">
+          <div className="auth-form__options auth-form__options--end">
+            <span className="disabled-link" title="Восстановление пароля пока не поддерживается API">
               Забыли пароль?
             </span>
           </div>
-          <button className="primary-button" type="submit">Войти</button>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <button className="primary-button" disabled={isPending} type="submit">
+            {isPending ? 'Входим…' : 'Войти'}
+          </button>
         </form>
         <p className="auth-card__switch">
           Нет аккаунта? <Link to={routePaths.register}>Зарегистрироваться</Link>

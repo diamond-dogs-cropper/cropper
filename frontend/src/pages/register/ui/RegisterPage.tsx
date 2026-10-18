@@ -1,8 +1,42 @@
-import { Link } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
+import { getAuthErrorMessage } from '../../../features/auth/lib/authError'
+import { useAuth } from '../../../features/auth/model/useAuth'
 import { PasswordField } from '../../../shared/ui/PasswordField'
 
 export function Component() {
+  const { register } = useAuth()
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, setIsPending] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (isPending) return
+
+    setError(null)
+
+    const formData = new FormData(event.currentTarget)
+    const password = String(formData.get('password'))
+    const passwordConfirmation = String(formData.get('passwordConfirmation'))
+
+    if (password !== passwordConfirmation) {
+      setError('Пароли не совпадают')
+      return
+    }
+
+    setIsPending(true)
+
+    try {
+      await register({ email: String(formData.get('email')), password })
+      navigate(routePaths.templates, { replace: true })
+    } catch (registerError) {
+      setError(getAuthErrorMessage(registerError))
+      setIsPending(false)
+    }
+  }
+
   return (
     <section className="auth-page" aria-labelledby="register-title">
       <div className="auth-card auth-card--register">
@@ -10,7 +44,7 @@ export function Component() {
         <p className="auth-card__lead">
           Один аккаунт для создания шаблонов и подготовки логотипов.
         </p>
-        <form className="auth-form">
+        <form className="auth-form" onSubmit={(event) => void handleSubmit(event)}>
           <label className="field" htmlFor="register-email">
             <span className="field__label">Электронная почта</span>
             <input
@@ -35,7 +69,10 @@ export function Component() {
             label="Повторите пароль"
             name="passwordConfirmation"
           />
-          <button className="primary-button" type="submit">Создать аккаунт</button>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <button className="primary-button" disabled={isPending} type="submit">
+            {isPending ? 'Создаём аккаунт…' : 'Создать аккаунт'}
+          </button>
         </form>
         <p className="legal-copy">
           Создавая аккаунт, вы принимаете условия сервиса и политику конфиденциальности.
