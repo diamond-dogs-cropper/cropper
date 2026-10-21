@@ -8,7 +8,13 @@ type PasswordFieldProps = {
   name: string
 }
 
-export function PasswordField({ autoComplete, hint, id, label, name }: PasswordFieldProps) {
+export function PasswordField({
+  autoComplete,
+  hint,
+  id,
+  label,
+  name,
+}: Readonly<PasswordFieldProps>) {
   const [isVisible, setIsVisible] = useState(false)
 
   return (

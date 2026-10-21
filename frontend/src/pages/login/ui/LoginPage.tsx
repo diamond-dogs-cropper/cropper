@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
 import { getAuthErrorMessage } from '../../../features/auth/lib/authError'
 import { getSafeRedirect } from '../../../features/auth/lib/getSafeRedirect'
+import { readField } from '../../../features/auth/lib/readField'
 import { useAuth } from '../../../features/auth/model/useAuth'
 import { PasswordField } from '../../../shared/ui/PasswordField'
 
@@ -24,8 +25,8 @@ export function Component() {
 
     try {
       await login({
-        email: String(formData.get('email')),
-        password: String(formData.get('password')),
+        email: readField(formData, 'email'),
+        password: readField(formData, 'password'),
       })
       navigate(getSafeRedirect(location.search, routePaths.templates), { replace: true })
     } catch (loginError) {
