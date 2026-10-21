@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { getAuthErrorMessage } from '../../features/auth/lib/authError'
 import { useAuth } from '../../features/auth/model/useAuth'
 import { SiteHeader } from '../../widgets/site-header/ui/SiteHeader'
@@ -29,12 +29,18 @@ export function AppLayout() {
     <div className="app-layout">
       <SiteHeader
         action={
-          <div className="account-actions">
-            <span>{email}</span>
-            <button disabled={isPending} onClick={() => void handleLogout()} type="button">
-              {isPending ? 'Выходим…' : 'Выйти'}
-            </button>
-          </div>
+          <>
+            <div className="app-nav">
+              <NavLink to={routePaths.home} end>На главную</NavLink>
+              <NavLink to={routePaths.templates}>Мои шаблоны</NavLink>
+            </div>
+            <div className="account-actions">
+              <span>{email}</span>
+              <button disabled={isPending} onClick={() => void handleLogout()} type="button">
+                {isPending ? 'Выходим…' : 'Выйти'}
+              </button>
+            </div>
+          </>
         }
         withMark
       />
