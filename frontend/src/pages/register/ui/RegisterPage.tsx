@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
 import { getAuthErrorMessage } from '../../../features/auth/lib/authError'
+import { readField } from '../../../features/auth/lib/readField'
 import { useAuth } from '../../../features/auth/model/useAuth'
 import { PasswordField } from '../../../shared/ui/PasswordField'
 
@@ -18,8 +19,8 @@ export function Component() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-    const password = String(formData.get('password'))
-    const passwordConfirmation = String(formData.get('passwordConfirmation'))
+    const password = readField(formData, 'password')
+    const passwordConfirmation = readField(formData, 'passwordConfirmation')
 
     if (password !== passwordConfirmation) {
       setError('Пароли не совпадают')
@@ -29,7 +30,7 @@ export function Component() {
     setIsPending(true)
 
     try {
-      await register({ email: String(formData.get('email')), password })
+      await register({ email: readField(formData, 'email'), password })
       navigate(routePaths.templates, { replace: true })
     } catch (registerError) {
       setError(getAuthErrorMessage(registerError))

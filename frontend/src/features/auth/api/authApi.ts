@@ -17,12 +17,10 @@ async function requestCurrentUser(): Promise<User | null> {
 }
 
 export function getCurrentUser(): Promise<User | null> {
-  if (!currentUserRequest) {
-    currentUserRequest = requestCurrentUser().catch((error: unknown) => {
-      currentUserRequest = null
-      throw error
-    })
-  }
+  currentUserRequest ??= requestCurrentUser().catch((error: unknown) => {
+    currentUserRequest = null
+    throw error
+  })
 
   return currentUserRequest
 }

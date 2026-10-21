@@ -3,7 +3,7 @@ type BrandProps = {
   withMark?: boolean
 }
 
-export function Brand({ label, withMark = false }: BrandProps) {
+export function Brand({ label, withMark = false }: Readonly<BrandProps>) {
   return (
     <span className="brand">
       {withMark ? <span className="brand__mark" aria-hidden="true" /> : null}

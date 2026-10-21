@@ -15,7 +15,7 @@ type AuthProviderProps = {
 
 const initialState: AuthState = { status: 'loading', user: null }
 
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
   const [state, setState] = useState<AuthState>(initialState)
 
   const applyUser = useCallback((user: User | null) => {
