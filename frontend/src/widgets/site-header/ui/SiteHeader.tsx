@@ -13,7 +13,7 @@ export function SiteHeader({
   action,
   brandLabel = 'Cropper',
   withMark = false,
-}: SiteHeaderProps) {
+}: Readonly<SiteHeaderProps>) {
   return (
     <header className="site-header">
       <Link className="site-header__brand-link" to={routePaths.home} aria-label="На главную">

@@ -45,6 +45,14 @@ export const router = createBrowserRouter([
                 path: routePaths.templates,
                 lazy: () => import('../../pages/templates/ui/TemplatesPage'),
               },
+              {
+                path: routePaths.templateNew,
+                lazy: () => import('../../pages/template-new/ui/TemplateNewPage'),
+              },
+              {
+                path: routePaths.template,
+                lazy: () => import('../../pages/template/ui/TemplatePage'),
+              },
             ],
           },
         ],

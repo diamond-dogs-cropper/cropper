@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import auth, health
+from app.api import auth, health, public, templates
 from app.errors import register_error_handlers
 from app.storage.client import ensure_bucket
 
@@ -24,3 +24,5 @@ app = FastAPI(
 register_error_handlers(app)
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
+app.include_router(templates.router, prefix="/api")
+app.include_router(public.router, prefix="/api")

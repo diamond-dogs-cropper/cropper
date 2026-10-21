@@ -22,16 +22,16 @@ def error_response(
     return JSONResponse(body, status_code=status_code)
 
 
-async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
     return error_response(exc.status_code, exc.code, exc.message)
 
 
-async def handle_http_error(request: Request, exc: HTTPException) -> JSONResponse:
+def handle_http_error(request: Request, exc: HTTPException) -> JSONResponse:
     status = HTTPStatus(exc.status_code)
     return error_response(status, status.phrase.lower().replace(" ", "_"), str(exc.detail))
 
 
-async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     details = [
         {"field": ".".join(str(part) for part in error["loc"]), "message": error["msg"]}
         for error in exc.errors()
@@ -39,7 +39,7 @@ async def handle_validation_error(request: Request, exc: RequestValidationError)
     return error_response(422, "validation_error", "Некорректные данные запроса", details)
 
 
-async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
     return error_response(500, "internal_error", "Внутренняя ошибка сервера")
 
 
