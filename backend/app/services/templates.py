@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.errors import AppError
 from app.models import Template, User
 from app.schemas.template import TemplateIn
+from app.storage.client import delete_template_logos
 
 
 def create(db: Session, owner: User, data: TemplateIn) -> Template:
@@ -46,5 +47,6 @@ def set_open(db: Session, template: Template, is_open: bool) -> Template:
 
 
 def delete(db: Session, template: Template) -> None:
+    delete_template_logos(template.id)
     db.delete(template)
     db.commit()
