@@ -1,17 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Response
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Cookie, Response
 
-from app.api.deps import SESSION_COOKIE, CurrentUser
+from app.api.deps import SESSION_COOKIE, CurrentUser, DbSession
 from app.config import settings
-from app.db.session import get_session
 from app.schemas.auth import Credentials, UserOut
 from app.services import auth
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-DbSession = Annotated[Session, Depends(get_session)]
 
 
 @router.post("/register", status_code=201)

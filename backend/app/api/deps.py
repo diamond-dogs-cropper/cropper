@@ -10,9 +10,11 @@ from app.services import auth
 
 SESSION_COOKIE = "session"
 
+DbSession = Annotated[Session, Depends(get_session)]
+
 
 def current_user(
-    db: Annotated[Session, Depends(get_session)],
+    db: DbSession,
     session: Annotated[str | None, Cookie()] = None,
 ) -> User:
     user = auth.find_user(db, session) if session else None
