@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEventHandler } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
 import { getAuthErrorMessage } from '../../../features/auth/lib/authError'
@@ -14,7 +14,7 @@ export function Component() {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     if (isPending) return
 
