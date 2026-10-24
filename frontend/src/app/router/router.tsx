@@ -36,6 +36,10 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        path: routePaths.publicTemplate,
+        lazy: () => import('../../pages/public-template/ui/PublicTemplatePage'),
+      },
+      {
         element: <RequireAuth />,
         children: [
           {
