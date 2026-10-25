@@ -18,7 +18,7 @@ export function AppLayout() {
 
     try {
       await logout()
-      navigate(routePaths.home, { replace: true })
+      navigate(routePaths.home, { replace: true, viewTransition: true })
     } catch (logoutError) {
       setError(getAuthErrorMessage(logoutError))
       setIsPending(false)
@@ -31,8 +31,8 @@ export function AppLayout() {
         action={
           <>
             <div className="app-nav">
-              <NavLink to={routePaths.home} end>На главную</NavLink>
-              <NavLink to={routePaths.templates}>Мои шаблоны</NavLink>
+              <NavLink to={routePaths.home} end viewTransition>На главную</NavLink>
+              <NavLink to={routePaths.templates} viewTransition>Мои шаблоны</NavLink>
             </div>
             <div className="account-actions">
               <span>{email}</span>

@@ -4,6 +4,7 @@ import { routePaths } from '../../../app/router/routePaths'
 import {
   deleteTemplate,
   getTemplates,
+  getTemplatesSnapshot,
   setTemplateOpen,
 } from '../../../features/templates/api/templatesApi'
 import { formatTemplateCount } from '../../../features/templates/lib/templateText'
@@ -11,6 +12,7 @@ import type { Template } from '../../../features/templates/model/templates.types
 import { TemplateRow } from '../../../features/templates/ui/TemplateRow'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { ButtonLink } from '../../../shared/ui/ButtonLink'
+import { TemplatesPageSkeleton } from '../../../shared/ui/PageSkeletons'
 
 type ListState =
   | { status: 'loading' }
@@ -18,7 +20,10 @@ type ListState =
   | { status: 'ready'; templates: Template[] }
 
 export function Component() {
-  const [state, setState] = useState<ListState>({ status: 'loading' })
+  const [state, setState] = useState<ListState>(() => {
+    const templates = getTemplatesSnapshot()
+    return templates ? { status: 'ready', templates } : { status: 'loading' }
+  })
   const [query, setQuery] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -28,9 +33,14 @@ export function Component() {
 
     getTemplates()
       .then((templates) => isCurrent && setState({ status: 'ready', templates }))
-      .catch(
-        (error: unknown) => isCurrent && setState({ status: 'error', message: getErrorMessage(error) }),
-      )
+      .catch((error: unknown) => {
+        if (!isCurrent) return
+        setState((current) =>
+          current.status === 'ready'
+            ? current
+            : { status: 'error', message: getErrorMessage(error) },
+        )
+      })
 
     return () => {
       isCurrent = false
@@ -87,7 +97,7 @@ export function Component() {
         <ButtonLink to={routePaths.templateNew}>Создать шаблон</ButtonLink>
       </div>
 
-      {state.status === 'loading' ? <p className="page-note">Загружаем шаблоны…</p> : null}
+      {state.status === 'loading' ? <TemplatesPageSkeleton /> : null}
 
       {state.status === 'error' ? (
         <div className="empty-state" role="alert">
@@ -100,7 +110,7 @@ export function Component() {
         <div className="empty-state">
           <h2>Шаблонов пока нет</h2>
           <p>
-            Создайте первый шаблон и отправьте ссылку компаниям — <Link to={routePaths.templateNew}>создать шаблон</Link>.
+            Создайте первый шаблон и отправьте ссылку компаниям — <Link to={routePaths.templateNew} viewTransition>создать шаблон</Link>.
           </p>
         </div>
       ) : null}

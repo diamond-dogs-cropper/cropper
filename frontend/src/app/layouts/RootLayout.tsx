@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom'
+import { Outlet, ScrollRestoration, useLocation, useNavigation } from 'react-router-dom'
 import { routePaths } from '../router/routePaths'
 
 function getPageTitle(pathname: string): string {
@@ -16,6 +16,8 @@ function getPageTitle(pathname: string): string {
 
 export function RootLayout() {
   const { pathname } = useLocation()
+  const navigation = useNavigation()
+  const isNavigating = navigation.state !== 'idle'
 
   useEffect(() => {
     document.title = getPageTitle(pathname)
@@ -23,6 +25,15 @@ export function RootLayout() {
 
   return (
     <>
+      <div
+        aria-hidden={!isNavigating}
+        aria-label="Загрузка страницы"
+        aria-valuetext={isNavigating ? 'Загрузка' : 'Готово'}
+        className={`navigation-progress${isNavigating ? ' navigation-progress--active' : ''}`}
+        role="progressbar"
+      >
+        <span />
+      </div>
       <Outlet />
       <ScrollRestoration />
     </>

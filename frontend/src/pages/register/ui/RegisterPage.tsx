@@ -31,7 +31,7 @@ export function Component() {
 
     try {
       await register({ email: readField(formData, 'email'), password })
-      navigate(routePaths.templates, { replace: true })
+      navigate(routePaths.templates, { replace: true, viewTransition: true })
     } catch (registerError) {
       setError(getAuthErrorMessage(registerError))
       setIsPending(false)
@@ -83,7 +83,7 @@ export function Component() {
           <span>Конфиденциальность</span>
         </p>
         <p className="auth-card__switch">
-          Уже есть аккаунт? <Link to={routePaths.login}>Войти</Link>
+          Уже есть аккаунт? <Link to={routePaths.login} viewTransition>Войти</Link>
         </p>
       </div>
       <p className="auth-page__note">

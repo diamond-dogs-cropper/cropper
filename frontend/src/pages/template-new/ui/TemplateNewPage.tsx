@@ -36,7 +36,10 @@ export function Component() {
 
     try {
       const template = await createTemplate(input)
-      navigate(getTemplatePath(template.id), { state: { created: true } })
+      navigate(getTemplatePath(template.id), {
+        state: { created: true, template },
+        viewTransition: true,
+      })
     } catch (requestError) {
       setError(getErrorMessage(requestError))
       setIsPending(false)
@@ -50,7 +53,7 @@ export function Component() {
           <h1 id="template-new-title">Новый шаблон</h1>
           <p>Укажите параметры плашки. Компании получат их вместе со ссылкой.</p>
         </div>
-        <Link to={routePaths.templates}>К списку шаблонов</Link>
+        <Link to={routePaths.templates} viewTransition>К списку шаблонов</Link>
       </div>
       <div className="template-new-page__body">
         <TemplateForm

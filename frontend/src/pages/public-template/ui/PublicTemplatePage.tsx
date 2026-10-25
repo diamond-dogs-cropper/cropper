@@ -64,10 +64,40 @@ function PublicStatus({ message, title }: Readonly<{ message: string; title: str
       <p className="status-page__code">Cropper</p>
       <h1>{title}</h1>
       <p>{message}</p>
-      <Link className="button-link button-link--large" to={routePaths.home}>
+      <Link className="button-link button-link--large" to={routePaths.home} viewTransition>
         На главную
       </Link>
     </main>
+  )
+}
+
+function RecipientPageSkeleton() {
+  return (
+    <div aria-busy="true" className="recipient-page page-skeleton">
+      <RecipientHeader />
+      <p className="visually-hidden" role="status">Загружаем параметры шаблона…</p>
+      <main aria-hidden="true" className="recipient-main">
+        <div className="recipient-title skeleton-stack">
+          <span className="skeleton skeleton-heading" />
+          <span className="skeleton skeleton-line skeleton-line--large" />
+        </div>
+        <div className="recipient-steps recipient-steps--skeleton">
+          {[0, 1, 2, 3].map((step) => <span className="skeleton" key={step} />)}
+        </div>
+        <div className="recipient-grid">
+          <section className="panel recipient-workspace recipient-workspace--skeleton">
+            <span className="skeleton skeleton-subheading" />
+            <span className="skeleton recipient-stage" />
+          </section>
+          <aside className="panel recipient-sidebar skeleton-stack skeleton-stack--roomy">
+            <span className="skeleton skeleton-subheading" />
+            <span className="skeleton skeleton-line skeleton-line--medium" />
+            <span className="skeleton skeleton-line skeleton-line--large" />
+            <span className="skeleton skeleton-line skeleton-line--medium" />
+          </aside>
+        </div>
+      </main>
+    </div>
   )
 }
 
@@ -107,7 +137,7 @@ export function Component() {
   }, [templateId])
 
   if (load.status === 'loading') {
-    return <main className="recipient-loading">Загружаем параметры шаблона…</main>
+    return <RecipientPageSkeleton />
   }
 
   if (load.status === 'missing') {
@@ -276,13 +306,13 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
 function RecipientHeader() {
   return (
     <header className="recipient-header">
-      <Link aria-label="Cropper — на главную" className="recipient-header__brand" to={routePaths.home}>
+      <Link aria-label="Cropper — на главную" className="recipient-header__brand" to={routePaths.home} viewTransition>
         <Brand label="Cropper" withMark />
       </Link>
       <nav aria-label="Основная навигация">
-        <Link to={routePaths.home}>На главную</Link>
-        <Link to={routePaths.templates}>Мои шаблоны</Link>
-        <Link to={routePaths.login}>Аккаунт</Link>
+        <Link to={routePaths.home} viewTransition>На главную</Link>
+        <Link to={routePaths.templates} viewTransition>Мои шаблоны</Link>
+        <Link to={routePaths.login} viewTransition>Аккаунт</Link>
       </nav>
     </header>
   )
