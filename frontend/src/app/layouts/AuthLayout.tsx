@@ -7,7 +7,7 @@ export function AuthLayout() {
     <div className="auth-layout">
       <SiteHeader
         brandLabel="Логоформ"
-        action={<Link to={routePaths.home}>На главную</Link>}
+        action={<Link to={routePaths.home} viewTransition>На главную</Link>}
       />
       <main className="auth-layout__content">
         <Outlet />

@@ -28,7 +28,10 @@ export function Component() {
         email: readField(formData, 'email'),
         password: readField(formData, 'password'),
       })
-      navigate(getSafeRedirect(location.search, routePaths.templates), { replace: true })
+      navigate(getSafeRedirect(location.search, routePaths.templates), {
+              replace: true,
+              viewTransition: true,
+            })
     } catch (loginError) {
       setError(getAuthErrorMessage(loginError))
       setIsPending(false)
@@ -71,7 +74,7 @@ export function Component() {
           </button>
         </form>
         <p className="auth-card__switch">
-          Нет аккаунта? <Link to={routePaths.register}>Зарегистрироваться</Link>
+          Нет аккаунта? <Link to={routePaths.register} viewTransition>Зарегистрироваться</Link>
         </p>
       </div>
       <p className="auth-page__note">

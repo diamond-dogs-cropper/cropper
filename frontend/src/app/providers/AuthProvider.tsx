@@ -7,6 +7,7 @@ import {
   register as registerRequest,
 } from '../../features/auth/api/authApi'
 import { AuthContext } from '../../features/auth/model/AuthContext'
+import { clearTemplatesSnapshot } from '../../features/templates/api/templatesApi'
 import type { AuthState, Credentials, User } from '../../features/auth/model/auth.types'
 
 type AuthProviderProps = {
@@ -49,15 +50,20 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
   }, [applyUser])
 
   const login = useCallback(async (credentials: Credentials) => {
-    setState({ status: 'authenticated', user: await loginRequest(credentials) })
+    const user = await loginRequest(credentials)
+    clearTemplatesSnapshot()
+    setState({ status: 'authenticated', user })
   }, [])
 
   const register = useCallback(async (credentials: Credentials) => {
-    setState({ status: 'authenticated', user: await registerRequest(credentials) })
+    const user = await registerRequest(credentials)
+    clearTemplatesSnapshot()
+    setState({ status: 'authenticated', user })
   }, [])
 
   const logout = useCallback(async () => {
     await logoutRequest()
+    clearTemplatesSnapshot()
     setState({ status: 'guest', user: null })
   }, [])
 

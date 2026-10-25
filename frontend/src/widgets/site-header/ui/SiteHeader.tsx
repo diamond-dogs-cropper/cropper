@@ -16,7 +16,7 @@ export function SiteHeader({
 }: Readonly<SiteHeaderProps>) {
   return (
     <header className="site-header">
-      <Link className="site-header__brand-link" to={routePaths.home} aria-label="На главную">
+      <Link className="site-header__brand-link" to={routePaths.home} aria-label="На главную" viewTransition>
         <Brand label={brandLabel} withMark={withMark} />
       </Link>
       {action ? <nav aria-label="Основная навигация">{action}</nav> : null}

@@ -41,11 +41,11 @@ export function TemplateRow({
         {formatCreatedAt(template.created_at)}
       </time>
       <div className="template-row__actions">
-        <Link className="outline-button" to={path}>
+        <Link className="outline-button" state={{ template }} to={path} viewTransition>
           Получить ссылку
         </Link>
         <div className="template-row__more">
-          <Link to={path}>Открыть шаблон</Link>
+          <Link state={{ template }} to={path} viewTransition>Открыть шаблон</Link>
           <button disabled={isPending} onClick={() => onToggleOpen(template)} type="button">
             {template.is_open ? 'Закрыть сбор' : 'Открыть сбор'}
           </button>

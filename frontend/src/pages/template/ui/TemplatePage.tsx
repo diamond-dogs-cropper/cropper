@@ -11,6 +11,7 @@ import {
 } from '../../../features/templates/lib/templateText'
 import type { Template } from '../../../features/templates/model/templates.types'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
+import { TemplatePageSkeleton } from '../../../shared/ui/PageSkeletons'
 
 type LoadResult = { id: string } & ({ template: Template } | { message: string })
 
@@ -21,10 +22,14 @@ export function Component() {
   const location = useLocation()
   const [result, setResult] = useState<LoadResult | null>(null)
   const [copy, setCopy] = useState<CopyState>('idle')
-  const isCreated = Boolean((location.state as { created?: boolean } | null)?.created)
-  const load = result?.id === templateId ? result : null
+  const routeState = location.state as { created?: boolean; template?: Template } | null
+  const routeTemplate = routeState?.template?.id === templateId ? routeState.template : null
+  const isCreated = Boolean(routeState?.created && routeTemplate)
+  const load = routeTemplate ? { id: templateId, template: routeTemplate } : result?.id === templateId ? result : null
 
   useEffect(() => {
+    if (routeTemplate) return
+
     let isCurrent = true
 
     getTemplate(templateId)
@@ -37,7 +42,7 @@ export function Component() {
     return () => {
       isCurrent = false
     }
-  }, [templateId])
+  }, [routeTemplate, templateId])
 
   useEffect(() => {
     if (copy !== 'copied') return
@@ -56,7 +61,7 @@ export function Component() {
   }
 
   if (!load) {
-    return <p className="page-note">Загружаем шаблон…</p>
+    return <TemplatePageSkeleton />
   }
 
   if ('message' in load) {
@@ -64,7 +69,7 @@ export function Component() {
       <section className="empty-state" role="alert">
         <h2>Не удалось открыть шаблон</h2>
         <p>{load.message}</p>
-        <Link to={routePaths.templates}>К списку шаблонов</Link>
+        <Link to={routePaths.templates} viewTransition>К списку шаблонов</Link>
       </section>
     )
   }
@@ -79,7 +84,7 @@ export function Component() {
           <h1 id="template-title">{isCreated ? 'Шаблон создан' : 'Ссылка на шаблон'}</h1>
           <p>Скопируйте ссылку и отправьте её представителям компаний.</p>
         </div>
-        <Link to={routePaths.templates}>К списку шаблонов</Link>
+        <Link to={routePaths.templates} viewTransition>К списку шаблонов</Link>
       </div>
       <div className="panel template-share">
         <div className="template-share__main">
