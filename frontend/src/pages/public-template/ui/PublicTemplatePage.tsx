@@ -58,6 +58,20 @@ const STEP_DESCRIPTIONS: Record<Step, string> = {
   4: 'Предпросмотр готового файла без рамки выделения, охранной зоны и направляющих.',
 }
 
+const SNAP_DISTANCE = 0.01
+const MAX_STRETCH = 1.5
+
+function snapToCenter(position: number, available: number, size: number): number {
+  return Math.abs((position - 0.5) * available) < size * SNAP_DISTANCE ? 0.5 : position
+}
+
+function describeOffset(x: number, y: number): string {
+  const parts = []
+  if (x) parts.push(`${x > 0 ? '→' : '←'} ${Math.abs(x)} px`)
+  if (y) parts.push(`${y > 0 ? '↓' : '↑'} ${Math.abs(y)} px`)
+  return parts.length ? parts.join(', ') : 'по центру'
+}
+
 function PublicStatus({ message, title }: Readonly<{ message: string; title: string }>) {
   return (
     <main className="status-page">
@@ -550,10 +564,24 @@ function PlacementStep({
 }: Readonly<PlacementStepProps>) {
   const plateRef = useRef<HTMLDivElement>(null)
   const dragStart = useRef<{ placement: Placement; x: number; y: number } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const geometry = getLogoGeometry(logo, crop, template, placement)
+  const safeWidth = template.width - template.padding_left - template.padding_right
+  const safeHeight = template.height - template.padding_top - template.padding_bottom
+  const offsetX = Math.round((safeWidth - geometry.width) * (placement.x - 0.5))
+  const offsetY = Math.round((safeHeight - geometry.height) * (placement.y - 0.5))
+  const isStretched = logo.sourceFormat !== 'svg' && geometry.width / geometry.sourceWidth > MAX_STRETCH
 
   const handlePointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
     event.currentTarget.setPointerCapture(event.pointerId)
     dragStart.current = { placement, x: event.clientX, y: event.clientY }
+    setIsDragging(true)
+  }
+
+  const stopDragging = () => {
+    dragStart.current = null
+    setIsDragging(false)
   }
 
   const handlePointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
@@ -562,16 +590,17 @@ function PlacementStep({
     if (!start || !plate) return
 
     const bounds = plate.getBoundingClientRect()
-    const geometry = getLogoGeometry(logo, crop, template, start.placement)
-    const availableX = template.width - template.padding_left - template.padding_right - geometry.width
-    const availableY = template.height - template.padding_top - template.padding_bottom - geometry.height
+    const availableX = safeWidth - geometry.width
+    const availableY = safeHeight - geometry.height
     const deltaX = ((event.clientX - start.x) / bounds.width) * template.width
     const deltaY = ((event.clientY - start.y) / bounds.height) * template.height
+    const x = availableX > 0 ? Math.min(1, Math.max(0, start.placement.x + deltaX / availableX)) : 0.5
+    const y = availableY > 0 ? Math.min(1, Math.max(0, start.placement.y + deltaY / availableY)) : 0.5
 
     onChange({
       ...placement,
-      x: availableX > 0 ? Math.min(1, Math.max(0, start.placement.x + deltaX / availableX)) : 0.5,
-      y: availableY > 0 ? Math.min(1, Math.max(0, start.placement.y + deltaY / availableY)) : 0.5,
+      x: snapToCenter(x, availableX, template.width),
+      y: snapToCenter(y, availableY, template.height),
     })
   }
 
@@ -585,10 +614,10 @@ function PlacementStep({
         <div className="recipient-stage recipient-stage--placement">
           <div
             className={template.background_color ? 'placement-plate' : 'placement-plate plate--transparent'}
-            onPointerCancel={() => { dragStart.current = null }}
+            onPointerCancel={stopDragging}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
-            onPointerUp={() => { dragStart.current = null }}
+            onPointerUp={stopDragging}
             ref={plateRef}
             style={{ aspectRatio: `${template.width} / ${template.height}` }}
           >
@@ -602,11 +631,22 @@ function PlacementStep({
                 top: `${(template.padding_top / template.height) * 100}%`,
               }}
             />
+            {isDragging ? (
+              <>
+                <div
+                  className={`placement-plate__guide placement-plate__guide--vertical${offsetX ? '' : ' placement-plate__guide--centered'}`}
+                  style={{ left: `${((template.padding_left + safeWidth / 2) / template.width) * 100}%` }}
+                />
+                <div
+                  className={`placement-plate__guide placement-plate__guide--horizontal${offsetY ? '' : ' placement-plate__guide--centered'}`}
+                  style={{ top: `${((template.padding_top + safeHeight / 2) / template.height) * 100}%` }}
+                />
+              </>
+            ) : null}
           </div>
         </div>
         <p className="recipient-workspace__hint">
-          Синяя рамка — охранная зона {template.width - template.padding_left - template.padding_right} ×{' '}
-          {template.height - template.padding_top - template.padding_bottom} px. В готовом файле она не отображается.
+          Синяя рамка — охранная зона {safeWidth} × {safeHeight} px. В готовом файле она не отображается.
         </p>
       </section>
 
@@ -625,6 +665,13 @@ function PlacementStep({
         <button className="outline-button" onClick={() => onChange({ ...placement, x: 0.5, y: 0.5 })} type="button">
           Центрировать
         </button>
+        <p>Смещение от центра: <strong>{describeOffset(offsetX, offsetY)}</strong></p>
+        {isStretched ? (
+          <p className="recipient-warning" role="status">
+            Логотип увеличен относительно исходника и может выглядеть размытым. Загрузите файл большего
+            разрешения или продолжите с текущим.
+          </p>
+        ) : null}
         <p>Перетаскивайте логотип мышью внутри плашки. Изменяйте масштаб без искажения пропорций.</p>
         {error ? <p className="recipient-error" role="alert">{error}</p> : null}
         <button className="primary-button" disabled={isExporting} onClick={onPreview} type="button">

@@ -1761,6 +1761,41 @@ legend.form-field__label {
   pointer-events: none;
 }
 
+.placement-plate__guide {
+  border: 0 dashed #c43d58;
+  position: absolute;
+  pointer-events: none;
+}
+
+.placement-plate__guide--vertical {
+  top: 0;
+  bottom: 0;
+  border-left-width: 1px;
+}
+
+.placement-plate__guide--horizontal {
+  left: 0;
+  right: 0;
+  border-top-width: 1px;
+}
+
+.placement-plate__guide--centered {
+  border-style: solid;
+  border-color: var(--success);
+}
+
+.recipient-scale > p strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.recipient-scale > .recipient-warning {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff4e0;
+  color: #8a5300;
+}
+
 .recipient-stage--result {
   min-height: 440px;
   margin-top: 20px;
