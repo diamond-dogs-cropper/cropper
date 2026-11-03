@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react'
+import type { SubmitEvent } from 'react'
 import { FormField } from '../../../shared/ui/FormField'
 import { getErrorProps } from '../../../shared/ui/getErrorProps'
 import {
@@ -16,7 +16,7 @@ type TemplateFormProps = {
   errors: FormErrors
   isPending: boolean
   onChange: (patch: Partial<FormValues>) => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onSubmit: (event: SubmitEvent<HTMLFormElement>) => void
   values: FormValues
 }
 

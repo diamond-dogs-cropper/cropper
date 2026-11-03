@@ -25,7 +25,8 @@ export function Component() {
   const routeState = location.state as { created?: boolean; template?: Template } | null
   const routeTemplate = routeState?.template?.id === templateId ? routeState.template : null
   const isCreated = Boolean(routeState?.created && routeTemplate)
-  const load = routeTemplate ? { id: templateId, template: routeTemplate } : result?.id === templateId ? result : null
+  const currentResult = result?.id === templateId ? result : null
+  const load = routeTemplate ? { id: templateId, template: routeTemplate } : currentResult
 
   useEffect(() => {
     if (routeTemplate) return
