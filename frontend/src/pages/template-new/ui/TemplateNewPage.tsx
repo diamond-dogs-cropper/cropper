@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getTemplatePath, routePaths } from '../../../app/router/routePaths'
 import { createTemplate } from '../../../features/templates/api/templatesApi'
@@ -20,7 +20,7 @@ export function Component() {
   const [isPending, setIsPending] = useState(false)
   const { errors, input } = validate(values)
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isPending) return
 

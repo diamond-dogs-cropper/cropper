@@ -89,7 +89,7 @@ function RecipientPageSkeleton() {
   return (
     <div aria-busy="true" className="recipient-page page-skeleton">
       <RecipientHeader />
-      <p className="visually-hidden" role="status">Загружаем параметры шаблона…</p>
+      <output className="visually-hidden">Загружаем параметры шаблона…</output>
       <main aria-hidden="true" className="recipient-main">
         <div className="recipient-title skeleton-stack">
           <span className="skeleton skeleton-heading" />
@@ -667,7 +667,7 @@ function PlacementStep({
         </button>
         <p>Смещение от центра: <strong>{describeOffset(offsetX, offsetY)}</strong></p>
         {isStretched ? (
-          <p className="recipient-warning" role="status">
+          <p aria-atomic="true" aria-live="polite" className="recipient-warning">
             Логотип увеличен относительно исходника и может выглядеть размытым. Загрузите файл большего
             разрешения или продолжите с текущим.
           </p>

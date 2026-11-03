@@ -1,5 +1,5 @@
 function LoadingStatus({ children }: Readonly<{ children: string }>) {
-  return <p className="visually-hidden" role="status">{children}</p>
+  return <output className="visually-hidden">{children}</output>
 }
 
 function SkeletonLine({ size = 'medium' }: Readonly<{ size?: 'large' | 'medium' | 'small' }>) {

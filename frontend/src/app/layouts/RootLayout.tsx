@@ -26,14 +26,12 @@ export function RootLayout() {
   return (
     <>
       <div
-        aria-hidden={!isNavigating}
-        aria-label="Загрузка страницы"
-        aria-valuetext={isNavigating ? 'Загрузка' : 'Готово'}
+        aria-hidden="true"
         className={`navigation-progress${isNavigating ? ' navigation-progress--active' : ''}`}
-        role="progressbar"
       >
         <span />
       </div>
+      <output className="visually-hidden">{isNavigating ? 'Загрузка страницы' : ''}</output>
       <Outlet />
       <ScrollRestoration />
     </>
