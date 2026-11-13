@@ -1,1 +1,5 @@
 .idea
+.sonar-reports/
+.scannerwork/
+.sonarqube/
+.env

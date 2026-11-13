@@ -1,0 +1,9 @@
+[lint]
+select = ["ALL"]
+ignore = ["D203", "D213", "COM812", "ISC001", "CPY001"]  # contradict each other / the formatter
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "D", "ANN", "PLR2004", "SLF001", "INP001"]
