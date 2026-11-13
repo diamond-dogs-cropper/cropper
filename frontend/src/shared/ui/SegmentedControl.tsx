@@ -1,8 +1,8 @@
-type SegmentedControlProps<T extends string> = {
+interface SegmentedControlProps<T extends string> {
   label: string
   name: string
   onChange: (value: T) => void
-  options: Array<{ label: string; value: T }>
+  options: { label: string; value: T }[]
   showRadio?: boolean
   value: T
 }

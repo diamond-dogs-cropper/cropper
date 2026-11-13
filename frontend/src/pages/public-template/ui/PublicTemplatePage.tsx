@@ -7,10 +7,11 @@ import {
   type DragEventHandler,
   type PointerEventHandler,
   type ReactNode,
+  type SubmitEvent,
 } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
-import { getPublicTemplate } from '../../../features/templates/api/publicTemplatesApi'
+import { getPublicTemplate, uploadLogo } from '../../../features/templates/api/publicTemplatesApi'
 import {
   CENTERED_PLACEMENT,
   FULL_CROP,
@@ -30,10 +31,15 @@ import {
   describeUploadFormats,
   getFormatLabel,
 } from '../../../features/templates/lib/templateText'
-import type { Template } from '../../../features/templates/model/templates.types'
+import type { Logo, Template } from '../../../features/templates/model/templates.types'
 import { ApiError } from '../../../shared/api/apiClient'
+import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { Brand } from '../../../shared/ui/Brand'
+import { FormField } from '../../../shared/ui/FormField'
+import { getErrorProps } from '../../../shared/ui/getErrorProps'
+import { CropTour } from './CropTour'
 import { LogoCanvas } from './LogoCanvas'
+import { SentStep } from './SentStep'
 
 type LoadState = { templateId: string } & (
   | { status: 'loading' }
@@ -44,12 +50,19 @@ type LoadState = { templateId: string } & (
 
 type Step = 1 | 2 | 3 | 4
 
-const STEPS: Array<{ label: string; value: Step }> = [
+const STEPS: { label: string; value: Step }[] = [
   { label: 'Загрузка', value: 1 },
   { label: 'Обрезка', value: 2 },
   { label: 'Размещение', value: 3 },
-  { label: 'Скачивание', value: 4 },
+  { label: 'Отправка', value: 4 },
 ]
+
+const STEP_TITLES: Record<Step, string> = {
+  1: 'Подготовьте логотип',
+  2: 'Подготовьте логотип',
+  3: 'Подготовьте логотип',
+  4: 'Отправьте логотип',
+}
 
 const STEP_DESCRIPTIONS: Record<Step, string> = {
   1: 'Загрузите исходный файл. Затем выберите обрезку и разместите логотип на плашке.',
@@ -67,9 +80,13 @@ function snapToCenter(position: number, available: number, size: number): number
 
 function describeOffset(x: number, y: number): string {
   const parts = []
-  if (x) parts.push(`${x > 0 ? '→' : '←'} ${Math.abs(x)} px`)
-  if (y) parts.push(`${y > 0 ? '↓' : '↑'} ${Math.abs(y)} px`)
-  return parts.length ? parts.join(', ') : 'по центру'
+  if (x) {
+    parts.push(`${x > 0 ? '→' : '←'} ${Math.abs(x)} px`)
+  }
+  if (y) {
+    parts.push(`${y > 0 ? '↓' : '↑'} ${Math.abs(y)} px`)
+  }
+  return parts.length > 0 ? parts.join(', ') : 'по центру'
 }
 
 function PublicStatus({ message, title }: Readonly<{ message: string; title: string }>) {
@@ -129,7 +146,9 @@ export function Component() {
         (template) => isCurrent && setResult({ status: 'ready', template, templateId }),
       )
       .catch((error: unknown) => {
-        if (!isCurrent) return
+        if (!isCurrent) {
+          return
+        }
         if (error instanceof ApiError && error.status === 404) {
           setResult({
             message: 'Проверьте адрес ссылки или попросите организатора прислать новую.',
@@ -184,20 +203,18 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
   const [isPreparing, setIsPreparing] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [output, setOutput] = useState<Blob | null>(null)
+  const sending = useLogoSending(template.id)
+  const sent = sending.sent
   const selectionId = useRef(0)
-  const downloadUrl = useMemo(() => (output ? URL.createObjectURL(output) : null), [output])
+  const downloadUrl = useObjectUrl(output)
 
   useEffect(() => {
     return () => {
-      if (logo) URL.revokeObjectURL(logo.url)
+      if (logo) {
+        URL.revokeObjectURL(logo.url)
+      }
     }
   }, [logo])
-
-  useEffect(() => {
-    return () => {
-      if (downloadUrl) URL.revokeObjectURL(downloadUrl)
-    }
-  }, [downloadUrl])
 
   async function selectFile(file: File) {
     const currentSelection = selectionId.current + 1
@@ -222,7 +239,9 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
         setFileError(error instanceof Error ? error.message : 'Не удалось прочитать файл')
       }
     } finally {
-      if (selectionId.current === currentSelection) setIsPreparing(false)
+      if (selectionId.current === currentSelection) {
+        setIsPreparing(false)
+      }
     }
   }
 
@@ -236,12 +255,14 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
   }
 
   async function openResult() {
-    if (!logo) return
+    if (!logo) {
+      return
+    }
     setExportError(null)
     setIsExporting(true)
 
     try {
-      setOutput(await exportLogo(logo, crop, template, placement))
+      setOutput(await exportLogo({ crop, logo, placement, template }))
       setStep(4)
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'Не удалось подготовить файл')
@@ -250,12 +271,44 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
     }
   }
 
+  const preparePng = async () => {
+    if (!logo) {
+      throw new Error('Логотип не загружен')
+    }
+    // организатору всегда уходит PNG, в формат шаблона его переводит сервер при скачивании
+    return template.output_format === 'png' && output
+      ? output
+      : exportLogo({ crop, logo, placement, template }, 'png')
+  }
+
+  if (sent && logo) {
+    return (
+      <div className="recipient-page">
+        <RecipientHeader />
+        <main className="recipient-main">
+          <header className="recipient-title">
+            <h1>Логотип отправлен</h1>
+            <p className="recipient-title__meta">{template.name} · Подготовка логотипа завершена</p>
+          </header>
+          <SentStep
+            crop={crop}
+            fileName={getDownloadName(logo.fileName, template)}
+            logo={logo}
+            placement={placement}
+            sent={sent}
+            template={template}
+          />
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="recipient-page">
       <RecipientHeader />
       <main className="recipient-main">
         <header className="recipient-title">
-          <h1>Подготовьте логотип</h1>
+          <h1>{STEP_TITLES[step]}</h1>
           <p className="recipient-title__meta">
             {template.name} · {template.width} × {template.height} px ·{' '}
             {getFormatLabel(template.output_format)}
@@ -279,42 +332,88 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
             template={template}
           />
         ) : null}
-        {step === 2 && logo ? (
-          <CropStep
-            crop={crop}
-            logo={logo}
-            onApply={() => setStep(3)}
-            onChange={setCrop}
-            onReplace={replaceFile}
-          />
-        ) : null}
-        {step === 3 && logo ? (
-          <PlacementStep
-            crop={crop}
-            error={exportError}
-            isExporting={isExporting}
-            logo={logo}
-            onBack={() => setStep(2)}
-            onChange={setPlacement}
-            onPreview={() => void openResult()}
-            placement={placement}
-            template={template}
-          />
-        ) : null}
-        {step === 4 && logo && output && downloadUrl ? (
-          <ResultStep
-            crop={crop}
-            downloadUrl={downloadUrl}
-            fileName={getDownloadName(logo.fileName, template)}
-            logo={logo}
-            onBack={() => setStep(3)}
-            placement={placement}
-            template={template}
-          />
+        {logo ? (
+          <>
+            {step === 2 ? (
+              <CropStep
+                crop={crop}
+                logo={logo}
+                onApply={() => setStep(3)}
+                onChange={setCrop}
+                onReplace={replaceFile}
+              />
+            ) : null}
+            {step === 3 ? (
+              <PlacementStep
+                crop={crop}
+                error={exportError}
+                isExporting={isExporting}
+                logo={logo}
+                onBack={() => setStep(2)}
+                onChange={setPlacement}
+                onPreview={() => void openResult()}
+                placement={placement}
+                template={template}
+              />
+            ) : null}
+            {step === 4 && downloadUrl ? (
+              <SendStep
+                crop={crop}
+                downloadUrl={downloadUrl}
+                error={sending.error}
+                fileName={getDownloadName(logo.fileName, template)}
+                isSending={sending.isSending}
+                logo={logo}
+                onBack={() => setStep(3)}
+                onSend={(company) => void sending.send(company, preparePng)}
+                placement={placement}
+                template={template}
+              />
+            ) : null}
+          </>
         ) : null}
       </main>
     </div>
   )
+}
+
+function useObjectUrl(blob: Blob | null): string | null {
+  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
+
+  useEffect(() => {
+    return () => {
+      if (url) {
+        URL.revokeObjectURL(url)
+      }
+    }
+  }, [url])
+
+  return url
+}
+
+function useLogoSending(templateId: string) {
+  const [error, setError] = useState<string | null>(null)
+  const [isSending, setIsSending] = useState(false)
+  const [sent, setSent] = useState<Logo | null>(null)
+
+  async function send(company: string, preparePng: () => Promise<Blob>) {
+    setError(null)
+    setIsSending(true)
+
+    try {
+      setSent(await uploadLogo(templateId, company, await preparePng()))
+    } catch (requestError) {
+      setError(
+        requestError instanceof ApiError
+          ? getErrorMessage(requestError)
+          : 'Не удалось отправить логотип. Попробуйте ещё раз.',
+      )
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  return { error, isSending, send, sent }
 }
 
 function RecipientHeader() {
@@ -332,7 +431,7 @@ function RecipientHeader() {
   )
 }
 
-type UploadStepProps = {
+interface UploadStepProps {
   error: string | null
   isPreparing: boolean
   onSelect: (file: File) => void
@@ -342,20 +441,26 @@ type UploadStepProps = {
 function UploadStep({ error, isPreparing, onSelect, template }: Readonly<UploadStepProps>) {
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     const file = event.target.files?.[0]
-    if (file) onSelect(file)
+    if (file) {
+      onSelect(file)
+    }
     event.target.value = ''
   }
   const handleDrop: DragEventHandler<HTMLLabelElement> = (event) => {
     event.preventDefault()
     const file = event.dataTransfer.files[0]
-    if (file) onSelect(file)
+    if (file) {
+      onSelect(file)
+    }
   }
   const formats = describeUploadFormats(template.upload_formats)
+  const transparentFormats = template.upload_formats.filter((format) => format !== 'jpg')
 
   return (
     <div className="recipient-grid">
       <section className="panel recipient-workspace">
         <h2>Загрузите логотип</h2>
+        {error ? <p className="recipient-error" role="alert">{error}</p> : null}
         <div className="recipient-stage recipient-stage--upload">
           <label
             className={error ? 'recipient-dropzone recipient-dropzone--error' : 'recipient-dropzone'}
@@ -375,15 +480,17 @@ function UploadStep({ error, isPreparing, onSelect, template }: Readonly<UploadS
             <small>{formats} · до 10 МБ</small>
           </label>
         </div>
-        {error ? <p className="recipient-error" role="alert">{error}</p> : null}
       </section>
 
       <TemplateRequirements template={template}>
         <h2>Какой файл выбрать</h2>
-        <p>
-          Лучше использовать SVG или PNG с прозрачным фоном. Для JPG можно вручную убрать
-          лишние поля на следующем шаге.
-        </p>
+        <p>Принимаются файлы {formats}, до 10 МБ.</p>
+        {transparentFormats.length > 0 ? (
+          <p>Лучше всего подойдёт {describeUploadFormats(transparentFormats)} с прозрачным фоном.</p>
+        ) : null}
+        {template.upload_formats.includes('jpg') ? (
+          <p>У JPG лишние поля убираются на следующем шаге.</p>
+        ) : null}
       </TemplateRequirements>
     </div>
   )
@@ -404,7 +511,7 @@ function TemplateRequirements({
   )
 }
 
-type CropStepProps = {
+interface CropStepProps {
   crop: CropArea
   logo: LoadedLogo
   onApply: () => void
@@ -412,7 +519,7 @@ type CropStepProps = {
   onReplace: () => void
 }
 
-type CropInteraction = {
+interface CropInteraction {
   crop: CropArea
   mode: 'move' | 'ne' | 'nw' | 'se' | 'sw'
   startX: number
@@ -435,7 +542,9 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
   const handlePointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
     const active = interaction.current
     const viewport = viewportRef.current
-    if (!active || !viewport) return
+    if (!active || !viewport) {
+      return
+    }
 
     const bounds = viewport.getBoundingClientRect()
     const dx = (event.clientX - active.startX) / bounds.width
@@ -452,13 +561,17 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
         width += x - nextX
         x = nextX
       }
-      if (active.mode.includes('e')) width = Math.min(1 - x, Math.max(minimum, width + dx))
+      if (active.mode.includes('e')) {
+        width = Math.min(1 - x, Math.max(minimum, width + dx))
+      }
       if (active.mode.includes('n')) {
         const nextY = Math.min(y + height - minimum, Math.max(0, y + dy))
         height += y - nextY
         y = nextY
       }
-      if (active.mode.includes('s')) height = Math.min(1 - y, Math.max(minimum, height + dy))
+      if (active.mode.includes('s')) {
+        height = Math.min(1 - y, Math.max(minimum, height + dy))
+      }
     }
 
     onChange({ height, width, x, y })
@@ -499,6 +612,7 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
             />
             <div
               className="crop-editor__frame"
+              data-tour="frame"
               onPointerDown={beginInteraction('move')}
               style={{
                 height: `${crop.height * 100}%`,
@@ -526,20 +640,28 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
 
       <aside className="panel recipient-sidebar recipient-crop-actions">
         <h2>Рамка обрезки</h2>
-        <button className="primary-button" onClick={onApply} type="button">Применить обрезку</button>
-        <button className="outline-button" onClick={() => { onChange(FULL_CROP); onApply() }} type="button">
-          Без обрезки
+        <button
+          className="outline-button recipient-autocrop"
+          data-tour="auto"
+          onClick={() => onChange(suggestCrop(logo.image))}
+          type="button"
+        >
+          Автообрезка
         </button>
-        <button onClick={() => onChange(suggestCrop(logo.image))} type="button">
-          Отменить изменения рамки
+        <p>Рамка уже поставлена автоматически по краям логотипа. Поправьте её, если нужно.</p>
+        <button className="primary-button" data-tour="apply" onClick={onApply} type="button">
+          Применить обрезку
         </button>
-        <p>Масштаб и положение будут доступны после применения обрезки или выбора «Без обрезки».</p>
+        <button onClick={() => { onChange(FULL_CROP); onApply() }} type="button">
+          Продолжить без обрезки
+        </button>
       </aside>
+      <CropTour />
     </div>
   )
 }
 
-type PlacementStepProps = {
+interface PlacementStepProps {
   crop: CropArea
   error: string | null
   isExporting: boolean
@@ -587,7 +709,9 @@ function PlacementStep({
   const handlePointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
     const start = dragStart.current
     const plate = plateRef.current
-    if (!start || !plate) return
+    if (!start || !plate) {
+      return
+    }
 
     const bounds = plate.getBoundingClientRect()
     const availableX = safeWidth - geometry.width
@@ -646,7 +770,7 @@ function PlacementStep({
           </div>
         </div>
         <p className="recipient-workspace__hint">
-          Синяя рамка — охранная зона {safeWidth} × {safeHeight} px. В готовом файле она не отображается.
+          Оранжевая рамка — охранная зона {safeWidth} × {safeHeight} px. В готовом файле она не отображается.
         </p>
       </section>
 
@@ -675,36 +799,55 @@ function PlacementStep({
         <p>Перетаскивайте логотип мышью внутри плашки. Изменяйте масштаб без искажения пропорций.</p>
         {error ? <p className="recipient-error" role="alert">{error}</p> : null}
         <button className="primary-button" disabled={isExporting} onClick={onPreview} type="button">
-          {isExporting ? 'Готовим файл…' : 'Предпросмотр'}
+          {isExporting ? 'Готовим файл…' : 'Далее: проверка и отправка'}
         </button>
       </aside>
     </div>
   )
 }
 
-type ResultStepProps = {
+interface SendStepProps {
   crop: CropArea
   downloadUrl: string
+  error: string | null
   fileName: string
+  isSending: boolean
   logo: LoadedLogo
   onBack: () => void
+  onSend: (company: string) => void
   placement: Placement
   template: Template
 }
 
-function ResultStep({
+function SendStep({
   crop,
   downloadUrl,
+  error,
   fileName,
+  isSending,
   logo,
   onBack,
+  onSend,
   placement,
   template,
-}: Readonly<ResultStepProps>) {
+}: Readonly<SendStepProps>) {
+  const [company, setCompany] = useState('')
+  const [isChecked, setIsChecked] = useState(false)
+  const name = company.trim()
+  const companyError = isChecked && !name ? 'Укажите название компании' : undefined
+
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIsChecked(true)
+    if (name) {
+      onSend(name)
+    }
+  }
+
   return (
     <div className="recipient-grid">
       <section className="panel recipient-workspace">
-        <h2>Проверьте результат</h2>
+        <h2>Проверьте и отправьте</h2>
         <div className="recipient-stage recipient-stage--result">
           <div
             className={template.background_color ? 'result-plate' : 'result-plate plate--transparent'}
@@ -718,11 +861,27 @@ function ResultStep({
       </section>
 
       <TemplateRequirements template={template}>
-        <a className="primary-button" download={fileName} href={downloadUrl}>
+        <form className="recipient-send" noValidate onSubmit={handleSubmit}>
+          <FormField error={companyError} htmlFor="company" label="Название компании *">
+            <input
+              {...getErrorProps('company', companyError)}
+              autoComplete="organization"
+              id="company"
+              maxLength={100}
+              name="company"
+              onChange={(event) => setCompany(event.target.value)}
+              value={company}
+            />
+          </FormField>
+          {error ? <p className="recipient-error" role="alert">{error}</p> : null}
+          <button className="primary-button" disabled={isSending} type="submit">
+            {isSending ? 'Отправляем…' : 'Отправить логотип'}
+          </button>
+        </form>
+        <a className="outline-button" download={fileName} href={downloadUrl}>
           Скачать {getFormatLabel(template.output_format)}
         </a>
         <button className="outline-button" onClick={onBack} type="button">Вернуться к правкам</button>
-        <p>После скачивания передайте готовый файл организатору удобным способом.</p>
       </TemplateRequirements>
     </div>
   )

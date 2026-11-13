@@ -7,7 +7,7 @@ import {
 } from '../lib/templateText'
 import type { Template } from '../model/templates.types'
 
-type TemplateRowProps = {
+interface TemplateRowProps {
   isPending: boolean
   onDelete: (template: Template) => void
   onToggleOpen: (template: Template) => void

@@ -27,18 +27,35 @@ def ensure_bucket() -> None:
         client.make_bucket(settings.minio_bucket)
 
 
+def logo_key(template_id: str, logo_id: str) -> str:
+    return f"templates/{template_id}/{logo_id}.png"
+
+
 def put_logo(template_id: str, logo_id: str, data: bytes) -> None:
     client.put_object(
         settings.minio_bucket,
-        f"templates/{template_id}/{logo_id}.png",
+        logo_key(template_id, logo_id),
         io.BytesIO(data),
         len(data),
         content_type="image/png",
     )
 
 
+def get_logo(template_id: str, logo_id: str) -> bytes:
+    response = client.get_object(settings.minio_bucket, logo_key(template_id, logo_id))
+    try:
+        return response.read()
+    finally:
+        response.close()
+        response.release_conn()
+
+
+def delete_logo(template_id: str, logo_id: str) -> None:
+    client.remove_object(settings.minio_bucket, logo_key(template_id, logo_id))
+
+
 def delete_template_logos(template_id: str) -> None:
     found = client.list_objects(settings.minio_bucket, f"templates/{template_id}/", recursive=True)
     names = [DeleteObject(item.object_name) for item in found]
     for error in client.remove_objects(settings.minio_bucket, names):
-        raise AppError(503, "storage_error", f"Не удалось удалить файл {error.object_name}")
+        raise AppError(503, "storage_error", f"Не удалось удалить файл {error.name}")

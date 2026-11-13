@@ -7,7 +7,7 @@ import {
 } from '../../../features/templates/lib/logoFile'
 import type { Template } from '../../../features/templates/model/templates.types'
 
-type LogoCanvasProps = {
+interface LogoCanvasProps {
   crop: CropArea
   logo: LoadedLogo
   placement: Placement
@@ -19,7 +19,7 @@ export function LogoCanvas({ crop, logo, placement, template }: Readonly<LogoCan
 
   useEffect(() => {
     if (canvasRef.current) {
-      drawLogo(canvasRef.current, logo, crop, template, placement, 1200)
+      drawLogo(canvasRef.current, { crop, logo, placement, template }, 1200)
     }
   }, [crop, logo, placement, template])
 

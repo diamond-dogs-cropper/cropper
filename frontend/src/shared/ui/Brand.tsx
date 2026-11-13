@@ -1,4 +1,4 @@
-type BrandProps = {
+interface BrandProps {
   label: string
   withMark?: boolean
 }

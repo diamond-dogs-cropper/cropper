@@ -7,6 +7,7 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "fastapi>=0.143.0",
     "minio>=7.2.20",
+    "pillow>=13.0.0",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.15.0",
     "pydantic[email]>=2.14.0",
@@ -25,3 +26,26 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+plugins = ["pydantic.mypy"]
+
+# Соглашения проекта (docs/dev/conventions.md, 2026-11-13).
+[tool.pylint.main]
+# Ревизии Alembic генерируются: имена файлов и переменных revision/down_revision задаёт Alembic.
+ignore-paths = ["^migrations/versions/.*$"]
+
+[tool.pylint."messages control"]
+# Комментарии и docstrings пишем только там, где код сам не объясняет решение.
+disable = ["missing-module-docstring", "missing-class-docstring", "missing-function-docstring"]
+
+[tool.pylint.typecheck]
+# alembic.op и alembic.context — прокси, их методы появляются во время работы.
+ignored-modules = ["alembic.op", "alembic.context"]
+
+[tool.pylint.design]
+# Модели SQLAlchemy — описания таблиц, методов у них нет.
+exclude-too-few-public-methods = ["sqlalchemy\\.orm\\..*"]

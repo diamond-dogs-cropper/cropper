@@ -4,14 +4,14 @@ import { SegmentedControl } from '../../../shared/ui/SegmentedControl'
 import type { Padding } from '../model/templates.types'
 import type { FormValues, PaddingMode } from '../lib/templateForm'
 
-const sides: Array<{ key: keyof Padding; label: string }> = [
+const sides: { key: keyof Padding; label: string }[] = [
   { key: 'top', label: 'Сверху, px' },
   { key: 'right', label: 'Справа, px' },
   { key: 'bottom', label: 'Снизу, px' },
   { key: 'left', label: 'Слева, px' },
 ]
 
-type PaddingFieldProps = {
+interface PaddingFieldProps {
   error?: string
   onChange: (patch: Partial<FormValues>) => void
   values: FormValues
@@ -29,7 +29,7 @@ export function PaddingField({ error, onChange, values }: Readonly<PaddingFieldP
   }
 
   return (
-    <div className="form-section">
+    <div className="form-section form-section--safe">
       <h3>Охранные отступы</h3>
       <SegmentedControl<PaddingMode>
         label="Режим отступов"

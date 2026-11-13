@@ -1,11 +1,13 @@
 import { apiRequest } from '../../../shared/api/apiClient'
-import type { Template, TemplateInput } from '../model/templates.types'
+import type { Logo, Template, TemplateInput } from '../model/templates.types'
 
 const TEMPLATES_URL = '/api/templates'
 let templatesSnapshot: Template[] | null = null
 
 function updateSnapshot(template: Template) {
-  if (!templatesSnapshot) return
+  if (!templatesSnapshot) {
+    return
+  }
 
   const exists = templatesSnapshot.some((item) => item.id === template.id)
   templatesSnapshot = exists
@@ -40,6 +42,22 @@ export function getTemplate(id: string): Promise<Template> {
   return apiRequest<Template>(`${TEMPLATES_URL}/${id}`)
 }
 
+export function getLogos(templateId: string): Promise<Logo[]> {
+  return apiRequest<Logo[]>(`${TEMPLATES_URL}/${templateId}/logos`)
+}
+
+export function deleteLogo(templateId: string, logoId: string): Promise<void> {
+  return apiRequest<undefined>(`${TEMPLATES_URL}/${templateId}/logos/${logoId}`, { method: 'DELETE' })
+}
+
+export function getLogoUrl(templateId: string, logoId: string): string {
+  return `${TEMPLATES_URL}/${templateId}/logos/${logoId}/file`
+}
+
+export function getArchiveUrl(templateId: string): string {
+  return `${TEMPLATES_URL}/${templateId}/logos/archive`
+}
+
 export async function setTemplateOpen(id: string, isOpen: boolean): Promise<Template> {
   const template = await apiRequest<Template>(`${TEMPLATES_URL}/${id}`, {
     body: JSON.stringify({ is_open: isOpen }),
@@ -50,7 +68,7 @@ export async function setTemplateOpen(id: string, isOpen: boolean): Promise<Temp
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  await apiRequest<void>(`${TEMPLATES_URL}/${id}`, { method: 'DELETE' })
+  await apiRequest<undefined>(`${TEMPLATES_URL}/${id}`, { method: 'DELETE' })
   if (templatesSnapshot) {
     templatesSnapshot = templatesSnapshot.filter((template) => template.id !== id)
   }

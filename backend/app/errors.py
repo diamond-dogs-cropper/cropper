@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -22,24 +23,27 @@ def error_response(
     return JSONResponse(body, status_code=status_code)
 
 
-def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-    return error_response(exc.status_code, exc.code, exc.message)
+# Starlette передаёт обработчику Exception, поэтому сужаем тип внутри.
+def handle_app_error(_request: Request, exc: Exception) -> JSONResponse:
+    error = cast(AppError, exc)
+    return error_response(error.status_code, error.code, error.message)
 
 
-def handle_http_error(request: Request, exc: HTTPException) -> JSONResponse:
-    status = HTTPStatus(exc.status_code)
-    return error_response(status, status.phrase.lower().replace(" ", "_"), str(exc.detail))
+def handle_http_error(_request: Request, exc: Exception) -> JSONResponse:
+    error = cast(HTTPException, exc)
+    status = HTTPStatus(error.status_code)
+    return error_response(status, status.phrase.lower().replace(" ", "_"), str(error.detail))
 
 
-def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+def handle_validation_error(_request: Request, exc: Exception) -> JSONResponse:
     details = [
         {"field": ".".join(str(part) for part in error["loc"]), "message": error["msg"]}
-        for error in exc.errors()
+        for error in cast(RequestValidationError, exc).errors()
     ]
     return error_response(422, "validation_error", "Некорректные данные запроса", details)
 
 
-def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+def handle_unexpected_error(_request: Request, _exc: Exception) -> JSONResponse:
     return error_response(500, "internal_error", "Внутренняя ошибка сервера")
 
 

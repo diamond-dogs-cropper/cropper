@@ -1,14 +1,14 @@
 export type OutputFormat = 'png' | 'jpg' | 'webp'
 export type UploadFormat = 'svg' | 'png' | 'jpg'
 
-export type Padding = {
+export interface Padding {
   bottom: number
   left: number
   right: number
   top: number
 }
 
-export type TemplateInput = {
+export interface TemplateInput {
   background_color: string | null
   description: string
   height: number
@@ -20,6 +20,13 @@ export type TemplateInput = {
   padding_top: number
   upload_formats: UploadFormat[]
   width: number
+}
+
+export interface Logo {
+  company: string
+  created_at: string
+  id: string
+  size_bytes: number
 }
 
 export type Template = TemplateInput & {

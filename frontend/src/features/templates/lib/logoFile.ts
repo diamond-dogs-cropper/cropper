@@ -1,28 +1,29 @@
 import type { OutputFormat, Template, UploadFormat } from '../model/templates.types'
+import { describeUploadFormats } from './templateText'
 
 export const MAX_LOGO_BYTES = 10 * 1024 * 1024
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 const FORMAT_LABELS: Record<UploadFormat, string> = {
   jpg: 'JPG',
   png: 'PNG',
   svg: 'SVG',
 }
 
-export type CropArea = {
+export interface CropArea {
   height: number
   width: number
   x: number
   y: number
 }
 
-export type Placement = {
+export interface Placement {
   scale: number
   x: number
   y: number
 }
 
-export type LoadedLogo = {
+export interface LoadedLogo {
   fileName: string
   image: HTMLImageElement
   sourceFormat: UploadFormat
@@ -39,8 +40,12 @@ function hasBytes(bytes: Uint8Array, signature: number[]): boolean {
 async function detectFormat(file: File): Promise<UploadFormat | null> {
   const prefix = new Uint8Array(await file.slice(0, 4096).arrayBuffer())
 
-  if (hasBytes(prefix, PNG_SIGNATURE)) return 'png'
-  if (hasBytes(prefix, [0xff, 0xd8, 0xff])) return 'jpg'
+  if (hasBytes(prefix, PNG_SIGNATURE)) {
+    return 'png'
+  }
+  if (hasBytes(prefix, [0xFF, 0xD8, 0xFF])) {
+    return 'jpg'
+  }
 
   const text = new TextDecoder().decode(prefix).replace(/^\uFEFF/, '').trimStart()
   return /<svg(?:\s|>)/i.test(text) ? 'svg' : null
@@ -63,18 +68,18 @@ function loadImage(file: File): Promise<LoadedLogo['image']> {
     const image = new Image()
     const url = URL.createObjectURL(file)
 
-    image.onload = () => {
+    image.addEventListener('load', () => {
       if (image.naturalWidth === 0 || image.naturalHeight === 0) {
         URL.revokeObjectURL(url)
         reject(new Error('Изображение не содержит видимых данных'))
         return
       }
       resolve(image)
-    }
-    image.onerror = () => {
+    })
+    image.addEventListener('error', () => {
       URL.revokeObjectURL(url)
       reject(new Error('Файл повреждён или имеет неверный формат'))
-    }
+    })
     image.src = url
   })
 }
@@ -90,76 +95,102 @@ export function getAcceptValue(formats: UploadFormat[]): string {
 }
 
 export async function loadLogo(file: File, allowedFormats: UploadFormat[]): Promise<LoadedLogo> {
-  if (file.size === 0) throw new Error('Выбран пустой файл')
-  if (file.size > MAX_LOGO_BYTES) throw new Error('Файл больше 10 МБ')
+  if (file.size === 0) {
+    throw new Error('Выбран пустой файл')
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error('Файл больше 10 МБ')
+  }
 
   const sourceFormat = await detectFormat(file)
-  if (!sourceFormat) throw new Error('Файл должен быть в формате PNG, JPG или SVG')
-  if (!allowedFormats.includes(sourceFormat)) {
-    throw new Error(`Формат ${FORMAT_LABELS[sourceFormat]} не разрешён для этого шаблона`)
+  const allowed = describeUploadFormats(allowedFormats)
+  if (!sourceFormat) {
+    throw new Error(`Файл не подходит. Загрузите логотип в формате ${allowed}`)
   }
-  if (sourceFormat === 'svg') await assertSafeSvg(file)
+  if (!allowedFormats.includes(sourceFormat)) {
+    throw new Error(
+      `Формат ${FORMAT_LABELS[sourceFormat]} не принимается. Загрузите логотип в формате ${allowed}`,
+    )
+  }
+  if (sourceFormat === 'svg') {
+    await assertSafeSvg(file)
+  }
 
   const image = await loadImage(file)
   return { fileName: file.name, image, sourceFormat, url: image.src }
 }
 
-export function suggestCrop(image: HTMLImageElement): CropArea {
-  const maxSide = 800
-  const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
-  const width = Math.max(1, Math.round(image.naturalWidth * ratio))
-  const height = Math.max(1, Math.round(image.naturalHeight * ratio))
+interface Bounds {
+  bottom: number
+  left: number
+  right: number
+  top: number
+}
+
+const VISIBLE_ALPHA = 10
+const BACKGROUND_LEVEL = 248
+
+function readPixels(image: HTMLImageElement): ImageData | null {
+  const ratio = Math.min(1, 800 / Math.max(image.naturalWidth, image.naturalHeight))
   const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio))
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio))
   const context = canvas.getContext('2d', { willReadFrequently: true })
-
-  if (!context) return FULL_CROP
-
-  canvas.width = width
-  canvas.height = height
-  context.drawImage(image, 0, 0, width, height)
-
-  let pixels: Uint8ClampedArray
-  try {
-    pixels = context.getImageData(0, 0, width, height).data
-  } catch {
-    return FULL_CROP
+  if (!context) {
+    return null
   }
 
-  let hasTransparency = false
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  try {
+    return context.getImageData(0, 0, canvas.width, canvas.height)
+  } catch {
+    return null
+  }
+}
+
+function hasTransparency(pixels: Uint8ClampedArray): boolean {
   for (let index = 3; index < pixels.length; index += 4) {
     if (pixels[index] < 250) {
-      hasTransparency = true
-      break
+      return true
     }
   }
+  return false
+}
 
-  let left = width
-  let top = height
-  let right = -1
-  let bottom = -1
+function findBounds({ data, height, width }: ImageData): Bounds | null {
+  const byAlpha = hasTransparency(data)
+  const isVisible = (index: number) =>
+    byAlpha
+      ? data[index + 3] > VISIBLE_ALPHA
+      : Math.min(data[index], data[index + 1], data[index + 2]) < BACKGROUND_LEVEL
+  const bounds = { bottom: -1, left: width, right: -1, top: height }
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const index = (y * width + x) * 4
-      const visible = hasTransparency
-        ? pixels[index + 3] > 10
-        : pixels[index] < 248 || pixels[index + 1] < 248 || pixels[index + 2] < 248
-
-      if (!visible) continue
-      left = Math.min(left, x)
-      top = Math.min(top, y)
-      right = Math.max(right, x)
-      bottom = Math.max(bottom, y)
+      if (isVisible((y * width + x) * 4)) {
+        bounds.left = Math.min(bounds.left, x)
+        bounds.top = Math.min(bounds.top, y)
+        bounds.right = Math.max(bounds.right, x)
+        bounds.bottom = Math.max(bounds.bottom, y)
+      }
     }
   }
+  return bounds.right < bounds.left ? null : bounds
+}
 
-  if (right < left || bottom < top) return FULL_CROP
+export function suggestCrop(image: HTMLImageElement): CropArea {
+  const pixels = readPixels(image)
+  const bounds = pixels ? findBounds(pixels) : null
+  if (!pixels || !bounds) {
+    return FULL_CROP
+  }
 
+  const { height, width } = pixels
   const padding = 2
-  left = Math.max(0, left - padding)
-  top = Math.max(0, top - padding)
-  right = Math.min(width - 1, right + padding)
-  bottom = Math.min(height - 1, bottom + padding)
+  const left = Math.max(0, bounds.left - padding)
+  const top = Math.max(0, bounds.top - padding)
+  const right = Math.min(width - 1, bounds.right + padding)
+  const bottom = Math.min(height - 1, bounds.bottom + padding)
 
   return {
     height: (bottom - top + 1) / height,
@@ -196,12 +227,16 @@ export function getLogoGeometry(
   }
 }
 
+export interface LogoLayout {
+  crop: CropArea
+  logo: LoadedLogo
+  placement: Placement
+  template: Template
+}
+
 export function drawLogo(
   canvas: HTMLCanvasElement,
-  logo: LoadedLogo,
-  crop: CropArea,
-  template: Template,
-  placement: Placement,
+  { crop, logo, placement, template }: LogoLayout,
   maxPreviewSide?: number,
 ): void {
   const previewRatio = maxPreviewSide
@@ -211,7 +246,9 @@ export function drawLogo(
   canvas.height = Math.max(1, Math.round(template.height * previewRatio))
 
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('Браузер не поддерживает обработку изображений')
+  if (!context) {
+    throw new Error('Браузер не поддерживает обработку изображений')
+  }
 
   context.scale(previewRatio, previewRatio)
   context.clearRect(0, 0, template.width, template.height)
@@ -240,8 +277,11 @@ function canvasToBlob(canvas: HTMLCanvasElement, outputFormat: OutputFormat): Pr
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (blob) resolve(blob)
-        else reject(new Error('Не удалось подготовить изображение'))
+        if (blob) {
+          resolve(blob)
+        } else {
+          reject(new Error('Не удалось подготовить изображение'))
+        }
       },
       mimeType,
       0.92,
@@ -250,14 +290,12 @@ function canvasToBlob(canvas: HTMLCanvasElement, outputFormat: OutputFormat): Pr
 }
 
 export async function exportLogo(
-  logo: LoadedLogo,
-  crop: CropArea,
-  template: Template,
-  placement: Placement,
+  layout: LogoLayout,
+  format: OutputFormat = layout.template.output_format,
 ): Promise<Blob> {
   const canvas = document.createElement('canvas')
-  drawLogo(canvas, logo, crop, template, placement)
-  const blob = await canvasToBlob(canvas, template.output_format)
+  drawLogo(canvas, layout)
+  const blob = await canvasToBlob(canvas, format)
 
   if (blob.size > MAX_LOGO_BYTES) {
     throw new Error('Готовое изображение больше 10 МБ. Уменьшите масштаб логотипа')

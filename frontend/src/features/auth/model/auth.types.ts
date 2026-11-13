@@ -1,9 +1,9 @@
-export type User = {
+export interface User {
   email: string
   id: number
 }
 
-export type Credentials = {
+export interface Credentials {
   email: string
   password: string
 }

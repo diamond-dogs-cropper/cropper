@@ -4,7 +4,7 @@ import type { OutputFormat } from '../model/templates.types'
 
 const AREA = { height: 352, width: 656 }
 
-type TemplatePreviewProps = {
+interface TemplatePreviewProps {
   outputFormat: OutputFormat
   plate: Plate | null
 }
@@ -53,11 +53,17 @@ export function TemplatePreview({ outputFormat, plate }: Readonly<TemplatePrevie
       </div>
       {plate ? (
         <div className="template-preview__legend">
-          <strong>
+          <strong className="legend-plate">
+            Плашка: {plate.width} × {plate.height}&nbsp;px
+          </strong>
+          <strong className="legend-safe">
             Безопасная область: {plate.width - plate.padding.left - plate.padding.right} ×{' '}
             {plate.height - plate.padding.top - plate.padding.bottom}&nbsp;px
           </strong>
-          <span>Синяя рамка обозначает охранные отступы и не попадёт в готовый файл.</span>
+          <span>
+            Цвет рамки совпадает с цветом полей слева: синяя — размер плашки, оранжевая — охранные
+            отступы. В готовый файл рамки не попадут.
+          </span>
         </div>
       ) : null}
     </section>

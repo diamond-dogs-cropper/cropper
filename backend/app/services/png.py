@@ -47,7 +47,7 @@ def read_size(data: bytes) -> tuple[int, int]:
     return header[0], header[1]
 
 
-def check_pixels(header: tuple[int, ...], compressed: bytes) -> None:
+def pixel_limits(header: tuple[int, ...]) -> tuple[int, int, bool]:
     width, height, depth, color, compression, filtering, interlace = header
     if not (width and height and color in CHANNELS and compression == 0 and filtering == 0):
         raise invalid("неверный заголовок")
@@ -57,6 +57,11 @@ def check_pixels(header: tuple[int, ...], compressed: bytes) -> None:
     row_bytes = (width * CHANNELS[color] * depth + 7) // 8
     expected = height * (row_bytes + 1)
     limit = 2 * height * (width * 8 + 1) if interlace else expected
+    return expected, limit, bool(interlace)
+
+
+def check_pixels(header: tuple[int, ...], compressed: bytes) -> None:
+    expected, limit, interlaced = pixel_limits(header)
 
     inflater = zlib.decompressobj()
     try:
@@ -64,5 +69,5 @@ def check_pixels(header: tuple[int, ...], compressed: bytes) -> None:
     except zlib.error as error:
         raise invalid("данные изображения повреждены") from error
     unfinished = not inflater.eof or inflater.unconsumed_tail or inflater.unused_data
-    if unfinished or len(raw) > limit or (not interlace and len(raw) != expected):
+    if unfinished or len(raw) > limit or (not interlaced and len(raw) != expected):
         raise invalid("данные изображения повреждены или обрезаны")

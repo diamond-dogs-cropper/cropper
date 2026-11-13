@@ -4,7 +4,7 @@ import { DEFAULT_COLOR, isHexColor, type FormValues } from '../lib/templateForm'
 
 type BackgroundMode = 'color' | 'transparent'
 
-type BackgroundFieldProps = {
+interface BackgroundFieldProps {
   error?: string
   onChange: (patch: Partial<FormValues>) => void
   values: FormValues
