@@ -32,8 +32,8 @@ export function Component() {
   const location = useLocation()
   const [logos, removeLogo] = useLogos(templateId)
   const [copy, copyLink] = useCopyLink()
-  const { isCreated, routeTemplate } = readRouteState(location.state, templateId)
-  const [tab, setTab] = useState<Tab>(isCreated ? 'settings' : 'logos')
+  const { initialTab, isCreated, routeTemplate } = readRouteState(location.state, templateId)
+  const [tab, setTab] = useState<Tab>(initialTab)
   const load = useTemplate(templateId, routeTemplate)
 
   if (!load) {
@@ -135,9 +135,11 @@ function TemplateTabs({ logos, onChange, tab }: Readonly<TemplateTabsProps>) {
 }
 
 function readRouteState(state: unknown, templateId: string) {
-  const routeState = state as { created?: boolean; template?: Template } | null
+  const routeState = state as { created?: boolean; tab?: Tab; template?: Template } | null
   const routeTemplate = routeState?.template?.id === templateId ? routeState.template : null
-  return { isCreated: Boolean(routeState?.created && routeTemplate), routeTemplate }
+  const isCreated = Boolean(routeState?.created && routeTemplate)
+  const initialTab: Tab = isCreated || routeState?.tab === 'settings' ? 'settings' : 'logos'
+  return { initialTab, isCreated, routeTemplate }
 }
 
 function useTemplate(templateId: string, routeTemplate: Template | null): LoadResult | null {
@@ -362,7 +364,7 @@ function ReceivedLogos({ onDeleted, result, template }: Readonly<ReceivedLogosPr
       <div className="panel logo-note">
         <h2>Логотипы появляются здесь после отправки участником</h2>
         <p>
-          Все файлы подготовлены по требованиям шаблона: {template.width} × {template.height}&nbsp;px,{' '}
+          Все файлы уже по требованиям шаблона: {template.width} × {template.height}&nbsp;px,{' '}
           {format}.
         </p>
       </div>

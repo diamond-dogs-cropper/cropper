@@ -16,7 +16,3 @@ export function uploadLogo(templateId: string, company: string, png: Blob): Prom
     method: 'POST',
   })
 }
-
-export function getSentLogoUrl(templateId: string, logoId: string): string {
-  return `${PUBLIC_TEMPLATES_URL}/${templateId}/logos/${logoId}/file`
-}

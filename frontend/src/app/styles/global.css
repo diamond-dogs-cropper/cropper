@@ -1141,7 +1141,7 @@ legend.form-field__label {
   border-radius: 8px;
   width: fit-content;
   color: var(--success);
-  background: var(--background);
+  background: #e7f6f1;
   font-size: 14px;
   font-weight: 500;
 }
@@ -1814,10 +1814,6 @@ legend.form-field__label {
   .recipient-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .recipient-sidebar {
-    order: -1;
-  }
 }
 
 @media (width <= 680px) {
@@ -1923,7 +1919,8 @@ legend.form-field__label {
     width: min(100% - 32px, 1200px);
   }
 
-  .account-actions > span {
+  .account-actions > span,
+  .app-nav > a:first-child {
     display: none;
   }
 

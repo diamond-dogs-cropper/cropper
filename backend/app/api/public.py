@@ -1,10 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import StringConstraints
 
 from app.api.deps import DbSession
-from app.api.templates import logo_file
 from app.errors import AppError
 from app.schemas.logo import LogoOut
 from app.schemas.template import TemplateOut
@@ -45,9 +44,3 @@ def upload_logo(
     db: DbSession,
 ) -> LogoOut:
     return LogoOut.model_validate(logos.save_png(db, template_id, company, data))
-
-
-@router.get("/{template_id}/logos/{logo_id}/file")
-def download_logo(template_id: str, logo_id: str, db: DbSession) -> Response:
-    template = templates.get_by_id(db, template_id)
-    return logo_file(logos.get(db, template, logo_id), template)
