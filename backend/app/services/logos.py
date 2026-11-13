@@ -64,8 +64,11 @@ def build_archive(db: Session, template: Template) -> bytes:
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as output:
         for logo in list_for(db, template):
             name = file_name(logo, template)
-            if name in used:
-                name = f"{name.rsplit('.', 1)[0]}_{logo.id}.{template.output_format}"
+            stem, extension = name.rsplit(".", 1)
+            number = 1
+            while name in used:
+                number += 1
+                name = f"{stem} ({number}).{extension}"
             used.add(name)
             output.writestr(name, read_file(logo, template))
     return archive.getvalue()

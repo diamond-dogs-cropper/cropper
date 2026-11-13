@@ -67,8 +67,8 @@ const STEP_TITLES: Record<Step, string> = {
 const STEP_DESCRIPTIONS: Record<Step, string> = {
   1: 'Загрузите исходный файл. Затем выберите обрезку и разместите логотип на плашке.',
   2: 'Автообрезка предложит рамку. Проверьте её и примените обрезку — после этого начнётся размещение.',
-  3: 'Обрезка применена. Настройте масштаб и положение, сохраняя логотип внутри охранной зоны.',
-  4: 'Предпросмотр готового файла без рамки выделения, охранной зоны и направляющих.',
+  3: 'Обрезка применена. Настройте масштаб и положение: логотип не выйдет за охранную зону.',
+  4: 'Так будет выглядеть готовый файл: без рамки, охранной зоны и направляющих.',
 }
 
 const SNAP_DISTANCE = 0.01
@@ -281,7 +281,7 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
       : exportLogo({ crop, logo, placement, template }, 'png')
   }
 
-  if (sent && logo) {
+  if (sent && logo && downloadUrl) {
     return (
       <div className="recipient-page">
         <RecipientHeader />
@@ -292,6 +292,7 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
           </header>
           <SentStep
             crop={crop}
+            downloadUrl={downloadUrl}
             fileName={getDownloadName(logo.fileName, template)}
             logo={logo}
             placement={placement}
@@ -634,7 +635,7 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
           </div>
         </div>
         <p className="recipient-workspace__hint">
-          Перетащите края рамки, чтобы убрать лишние поля. Сохраните все значимые части логотипа.
+          Перетащите края рамки, чтобы убрать лишние поля. Сам логотип не обрезайте.
         </p>
       </section>
 
@@ -648,7 +649,7 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
         >
           Автообрезка
         </button>
-        <p>Рамка уже поставлена автоматически по краям логотипа. Поправьте её, если нужно.</p>
+        <p>Рамка уже стоит по краям логотипа. Если нужно, поправьте её.</p>
         <button className="primary-button" data-tour="apply" onClick={onApply} type="button">
           Применить обрезку
         </button>
@@ -792,11 +793,11 @@ function PlacementStep({
         <p>Смещение от центра: <strong>{describeOffset(offsetX, offsetY)}</strong></p>
         {isStretched ? (
           <p aria-atomic="true" aria-live="polite" className="recipient-warning">
-            Логотип увеличен относительно исходника и может выглядеть размытым. Загрузите файл большего
-            разрешения или продолжите с текущим.
+            Логотип растянут больше исходного размера и может выглядеть размытым. Загрузите файл
+            покрупнее или оставьте этот.
           </p>
         ) : null}
-        <p>Перетаскивайте логотип мышью внутри плашки. Изменяйте масштаб без искажения пропорций.</p>
+        <p>Логотип можно двигать мышью внутри плашки. Пропорции при масштабе не меняются.</p>
         {error ? <p className="recipient-error" role="alert">{error}</p> : null}
         <button className="primary-button" disabled={isExporting} onClick={onPreview} type="button">
           {isExporting ? 'Готовим файл…' : 'Далее: проверка и отправка'}

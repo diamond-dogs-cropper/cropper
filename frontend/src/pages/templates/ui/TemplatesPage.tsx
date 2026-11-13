@@ -114,7 +114,7 @@ export function Component() {
         <div className="empty-state">
           <h2>Шаблонов пока нет</h2>
           <p>
-            Создайте первый шаблон и отправьте ссылку компаниям — <Link to={routePaths.templateNew} viewTransition>создать шаблон</Link>.
+            <Link to={routePaths.templateNew} viewTransition>Создайте первый шаблон</Link> и отправьте ссылку компаниям.
           </p>
         </div>
       ) : null}

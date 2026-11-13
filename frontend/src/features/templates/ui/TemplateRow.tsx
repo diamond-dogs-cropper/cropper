@@ -41,7 +41,7 @@ export function TemplateRow({
         {formatCreatedAt(template.created_at)}
       </time>
       <div className="template-row__actions">
-        <Link className="outline-button" state={{ template }} to={path} viewTransition>
+        <Link className="outline-button" state={{ tab: 'settings', template }} to={path} viewTransition>
           Получить ссылку
         </Link>
         <div className="template-row__more">

@@ -6,7 +6,7 @@ export function AuthLayout() {
   return (
     <div className="auth-layout">
       <SiteHeader
-        brandLabel="Логоформ"
+        withMark
         action={<Link to={routePaths.home} viewTransition>На главную</Link>}
       />
       <main className="auth-layout__content">
