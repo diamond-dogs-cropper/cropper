@@ -1,8 +1,7 @@
 from alembic import context
 
-import app.models  # noqa: F401
-from app.db.base import Base
 from app.db.session import engine
+from app.models import Base
 
 with engine.connect() as connection:
     context.configure(connection=connection, target_metadata=Base.metadata)

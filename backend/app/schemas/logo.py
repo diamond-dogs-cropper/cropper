@@ -8,4 +8,5 @@ class LogoOut(BaseModel):
 
     id: str
     company: str
+    size_bytes: int
     created_at: datetime
