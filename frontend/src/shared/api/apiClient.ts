@@ -1,9 +1,9 @@
-type ApiErrorDetails = Array<{
+type ApiErrorDetails = {
   field: string
   message: string
-}>
+}[]
 
-type ApiErrorBody = {
+interface ApiErrorBody {
   code?: string
   details?: ApiErrorDetails
   message?: string

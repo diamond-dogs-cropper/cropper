@@ -11,7 +11,7 @@ import type { OutputFormat, UploadFormat } from '../model/templates.types'
 import { BackgroundField } from './BackgroundField'
 import { PaddingField } from './PaddingField'
 
-type TemplateFormProps = {
+interface TemplateFormProps {
   error: string | null
   errors: FormErrors
   isPending: boolean
@@ -64,7 +64,7 @@ export function TemplateForm({
           value={values.description}
         />
       </FormField>
-      <div className="form-grid">
+      <div className="form-grid form-grid--plate">
         <FormField error={errors.width} htmlFor="template-width" label="Ширина, px">
           <input
             {...getErrorProps('template-width', errors.width)}

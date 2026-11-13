@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-type FormFieldProps = {
+interface FormFieldProps {
   children: ReactNode
   error?: string
   hint?: string

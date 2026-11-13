@@ -44,7 +44,7 @@ export async function register(credentials: Credentials): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
-  await apiRequest<void>(`${AUTH_URL}/logout`, { method: 'POST' })
+  await apiRequest<undefined>(`${AUTH_URL}/logout`, { method: 'POST' })
   currentUserRequest = Promise.resolve(null)
 }
 

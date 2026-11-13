@@ -22,7 +22,9 @@ export function Component() {
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (isPending) return
+    if (isPending) {
+      return
+    }
 
     const form = event.currentTarget
     setShowErrors(true)

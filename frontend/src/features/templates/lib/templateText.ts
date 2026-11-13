@@ -6,13 +6,17 @@ export function getFormatLabel(format: Template['output_format']): string {
 }
 
 export function describeBackground(color: string | null): string {
-  if (color === null) return 'прозрачный'
+  if (color === null) {
+    return 'прозрачный'
+  }
   return color === '#FFFFFF' ? 'белый #FFFFFF' : color
 }
 
 export function describeUploadFormats(formats: Template['upload_formats']): string {
   const labels = formats.map((format) => format.toUpperCase())
-  if (labels.length === 1) return labels[0]
+  if (labels.length === 1) {
+    return labels[0]
+  }
 
   return `${labels.slice(0, -1).join(', ')} или ${labels.at(-1)}`
 }
@@ -29,11 +33,13 @@ export function describePadding(template: Template): string {
 }
 
 export function getTemplateLink(id: string): string {
-  return `${window.location.origin}/t/${id}`
+  return `${globalThis.location.origin}/t/${id}`
 }
 
 function describeBackgroundShort(color: string | null): string {
-  if (color === null) return 'Прозрачный фон'
+  if (color === null) {
+    return 'Прозрачный фон'
+  }
   return color === '#FFFFFF' ? 'Белый фон' : `Фон ${color}`
 }
 
@@ -60,7 +66,17 @@ export function formatCreatedAt(value: string): string {
   return `${part('day')} ${part('month').replace('.', '')} ${part('year')}`
 }
 
-const pluralRules = new Intl.PluralRules('ru-RU')
+const timeFormat = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
+const dayFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' })
+
+export function formatReceivedAt(value: string): string {
+  const date = new Date(value)
+  const isToday = date.toDateString() === new Date().toDateString()
+
+  return `${isToday ? 'Сегодня' : dayFormat.format(date)}, ${timeFormat.format(date)}`
+}
+
+const pluralRules =new Intl.PluralRules('ru-RU')
 const templateWords: Record<string, string> = {
   few: 'шаблона',
   many: 'шаблонов',

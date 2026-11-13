@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-type PasswordFieldProps = {
+interface PasswordFieldProps {
   autoComplete: 'current-password' | 'new-password'
   hint?: string
   id: string

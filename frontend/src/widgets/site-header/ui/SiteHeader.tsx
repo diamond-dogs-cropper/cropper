@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
 import { Brand } from '../../../shared/ui/Brand'
 
-type SiteHeaderProps = {
+interface SiteHeaderProps {
   action?: ReactNode
   brandLabel?: string
   withMark?: boolean

@@ -10,7 +10,7 @@ import { AuthContext } from '../../features/auth/model/AuthContext'
 import { clearTemplatesSnapshot } from '../../features/templates/api/templatesApi'
 import type { AuthState, Credentials, User } from '../../features/auth/model/auth.types'
 
-type AuthProviderProps = {
+interface AuthProviderProps {
   children: ReactNode
 }
 
@@ -38,10 +38,14 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
 
     getCurrentUser()
       .then((user) => {
-        if (isActive) applyUser(user)
+        if (isActive) {
+          applyUser(user)
+        }
       })
       .catch(() => {
-        if (isActive) setState({ status: 'error', user: null })
+        if (isActive) {
+          setState({ status: 'error', user: null })
+        }
       })
 
     return () => {

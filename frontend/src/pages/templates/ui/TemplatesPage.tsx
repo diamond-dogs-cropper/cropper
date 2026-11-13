@@ -34,7 +34,9 @@ export function Component() {
     getTemplates()
       .then((templates) => isCurrent && setState({ status: 'ready', templates }))
       .catch((error: unknown) => {
-        if (!isCurrent) return
+        if (!isCurrent) {
+          return
+        }
         setState((current) =>
           current.status === 'ready'
             ? current
@@ -75,7 +77,9 @@ export function Component() {
 
   function remove(template: Template) {
     const question = `Удалить шаблон «${template.name}»? Загруженные по нему логотипы тоже будут удалены.`
-    if (!window.confirm(question)) return Promise.resolve()
+    if (!globalThis.confirm(question)) {
+      return Promise.resolve()
+    }
 
     return runAction(template, async () => {
       await deleteTemplate(template.id)
