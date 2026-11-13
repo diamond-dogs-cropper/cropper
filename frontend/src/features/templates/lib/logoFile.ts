@@ -128,7 +128,7 @@ interface Bounds {
 }
 
 const VISIBLE_ALPHA = 10
-const BACKGROUND_LEVEL = 248
+const BACKGROUND_TOLERANCE = 16
 
 function readPixels(image: HTMLImageElement): ImageData | null {
   const ratio = Math.min(1, 800 / Math.max(image.naturalWidth, image.naturalHeight))
@@ -157,12 +157,40 @@ function hasTransparency(pixels: Uint8ClampedArray): boolean {
   return false
 }
 
-function findBounds({ data, height, width }: ImageData): Bounds | null {
-  const byAlpha = hasTransparency(data)
-  const isVisible = (index: number) =>
-    byAlpha
-      ? data[index + 3] > VISIBLE_ALPHA
-      : Math.min(data[index], data[index + 1], data[index + 2]) < BACKGROUND_LEVEL
+function colorDistance(data: Uint8ClampedArray, index: number, color: Uint8ClampedArray): number {
+  return Math.max(
+    Math.abs(data[index] - color[0]),
+    Math.abs(data[index + 1] - color[1]),
+    Math.abs(data[index + 2] - color[2]),
+  )
+}
+
+function findBackground({ data, height, width }: ImageData): Uint8ClampedArray | null {
+  const corners = [0, width - 1, (height - 1) * width, height * width - 1].map((pixel) => pixel * 4)
+  const color = data.slice(corners[0], corners[0] + 3)
+  return corners.every((index) => colorDistance(data, index, color) <= BACKGROUND_TOLERANCE)
+    ? color
+    : null
+}
+
+function getVisibilityTest(pixels: ImageData): ((index: number) => boolean) | null {
+  const { data } = pixels
+  if (hasTransparency(data)) {
+    return (index) => data[index + 3] > VISIBLE_ALPHA
+  }
+  const background = findBackground(pixels)
+  return background
+    ? (index) => colorDistance(data, index, background) > BACKGROUND_TOLERANCE
+    : null
+}
+
+function findBounds(pixels: ImageData): Bounds | null {
+  const isVisible = getVisibilityTest(pixels)
+  if (!isVisible) {
+    return null
+  }
+
+  const { height, width } = pixels
   const bounds = { bottom: -1, left: width, right: -1, top: height }
 
   for (let y = 0; y < height; y += 1) {
