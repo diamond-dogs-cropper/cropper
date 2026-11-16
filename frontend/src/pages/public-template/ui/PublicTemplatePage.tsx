@@ -19,7 +19,9 @@ import {
   getAcceptValue,
   getDownloadName,
   getLogoGeometry,
+  hasOwnBackground,
   loadLogo,
+  removeBackground,
   suggestCrop,
   type CropArea,
   type LoadedLogo,
@@ -47,29 +49,6 @@ type LoadState = { templateId: string } & (
   | { message: string; status: 'error' }
   | { message: string; status: 'missing' }
 )
-
-type Step = 1 | 2 | 3 | 4
-
-const STEPS: { label: string; value: Step }[] = [
-  { label: 'Загрузка', value: 1 },
-  { label: 'Обрезка', value: 2 },
-  { label: 'Размещение', value: 3 },
-  { label: 'Отправка', value: 4 },
-]
-
-const STEP_TITLES: Record<Step, string> = {
-  1: 'Подготовьте логотип',
-  2: 'Подготовьте логотип',
-  3: 'Подготовьте логотип',
-  4: 'Отправьте логотип',
-}
-
-const STEP_DESCRIPTIONS: Record<Step, string> = {
-  1: 'Загрузите исходный файл. Затем выберите обрезку и разместите логотип на плашке.',
-  2: 'Автообрезка предложит рамку. Проверьте её и примените обрезку — после этого начнётся размещение.',
-  3: 'Обрезка применена. Настройте масштаб и положение: логотип не выйдет за охранную зону.',
-  4: 'Так будет выглядеть готовый файл: без рамки, охранной зоны и направляющих.',
-}
 
 const SNAP_DISTANCE = 0.01
 const MAX_STRETCH = 1.5
@@ -111,9 +90,6 @@ function RecipientPageSkeleton() {
         <div className="recipient-title skeleton-stack">
           <span className="skeleton skeleton-heading" />
           <span className="skeleton skeleton-line skeleton-line--large" />
-        </div>
-        <div className="recipient-steps recipient-steps--skeleton">
-          {[0, 1, 2, 3].map((step) => <span className="skeleton" key={step} />)}
         </div>
         <div className="recipient-grid">
           <section className="panel recipient-workspace recipient-workspace--skeleton">
@@ -194,27 +170,22 @@ export function Component() {
 }
 
 function RecipientEditor({ template }: Readonly<{ template: Template }>) {
-  const [step, setStep] = useState<Step>(1)
-  const [logo, setLogo] = useState<LoadedLogo | null>(null)
+  const [source, setSource] = useState<LoadedLogo | null>(null)
+  const [cleaned, setCleaned] = useState<LoadedLogo | null>(null)
+  const [backgroundError, setBackgroundError] = useState<string | null>(null)
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false)
+  const [isCropping, setIsCropping] = useState(false)
   const [crop, setCrop] = useState<CropArea>(FULL_CROP)
   const [placement, setPlacement] = useState<Placement>(CENTERED_PLACEMENT)
   const [fileError, setFileError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
-  const [output, setOutput] = useState<Blob | null>(null)
   const sending = useLogoSending(template.id)
   const sent = sending.sent
   const selectionId = useRef(0)
-  const downloadUrl = useObjectUrl(output)
-
-  useEffect(() => {
-    return () => {
-      if (logo) {
-        URL.revokeObjectURL(logo.url)
-      }
-    }
-  }, [logo])
+  const logo = cleaned ?? source
+  useRevokeOnChange(source)
+  useRevokeOnChange(cleaned)
 
   async function selectFile(file: File) {
     const currentSelection = selectionId.current + 1
@@ -229,11 +200,12 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
         URL.revokeObjectURL(nextLogo.url)
         return
       }
-      setLogo(nextLogo)
+      setSource(nextLogo)
+      setCleaned(null)
+      setBackgroundError(null)
       setCrop(suggestCrop(nextLogo.image))
       setPlacement(CENTERED_PLACEMENT)
-      setOutput(null)
-      setStep(2)
+      setIsCropping(false)
     } catch (error) {
       if (selectionId.current === currentSelection) {
         setFileError(error instanceof Error ? error.message : 'Не удалось прочитать файл')
@@ -247,41 +219,61 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
 
   function replaceFile() {
     selectionId.current += 1
-    setLogo(null)
-    setOutput(null)
+    setSource(null)
+    setCleaned(null)
     setFileError(null)
     setExportError(null)
-    setStep(1)
   }
 
-  async function openResult() {
+  async function clearBackground() {
+    if (!source) {
+      return
+    }
+    const currentSelection = selectionId.current
+    setBackgroundError(null)
+    setIsRemovingBackground(true)
+
+    try {
+      const result = await removeBackground(source)
+      if (selectionId.current === currentSelection) {
+        setCleaned(result)
+      } else {
+        URL.revokeObjectURL(result.url)
+      }
+    } catch (error) {
+      setBackgroundError(error instanceof Error ? error.message : 'Не удалось убрать фон')
+    } finally {
+      setIsRemovingBackground(false)
+    }
+  }
+
+  async function download() {
     if (!logo) {
       return
     }
     setExportError(null)
-    setIsExporting(true)
 
     try {
-      setOutput(await exportLogo({ crop, logo, placement, template }))
-      setStep(4)
+      const url = URL.createObjectURL(await exportLogo({ crop, logo, placement, template }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = getDownloadName(logo.fileName, template)
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'Не удалось подготовить файл')
-    } finally {
-      setIsExporting(false)
     }
   }
 
-  const preparePng = async () => {
+  // организатору всегда уходит PNG, в формат шаблона его переводит сервер при скачивании
+  const preparePng = () => {
     if (!logo) {
-      throw new Error('Логотип не загружен')
+      return Promise.reject(new Error('Логотип не загружен'))
     }
-    // организатору всегда уходит PNG, в формат шаблона его переводит сервер при скачивании
-    return template.output_format === 'png' && output
-      ? output
-      : exportLogo({ crop, logo, placement, template }, 'png')
+    return exportLogo({ crop, logo, placement, template }, 'png')
   }
 
-  if (sent && logo && downloadUrl) {
+  if (sent && logo) {
     return (
       <div className="recipient-page">
         <RecipientHeader />
@@ -292,9 +284,9 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
           </header>
           <SentStep
             crop={crop}
-            downloadUrl={downloadUrl}
             fileName={getDownloadName(logo.fileName, template)}
             logo={logo}
+            onDownload={() => void download()}
             placement={placement}
             sent={sent}
             template={template}
@@ -309,23 +301,14 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
       <RecipientHeader />
       <main className="recipient-main">
         <header className="recipient-title">
-          <h1>{STEP_TITLES[step]}</h1>
+          <h1>{logo ? 'Разместите и отправьте логотип' : 'Загрузите логотип'}</h1>
           <p className="recipient-title__meta">
             {template.name} · {template.width} × {template.height} px ·{' '}
             {getFormatLabel(template.output_format)}
           </p>
-          <p className="recipient-title__description">{STEP_DESCRIPTIONS[step]}</p>
         </header>
 
-        <nav className="recipient-steps" aria-label="Этапы подготовки логотипа">
-          {STEPS.map((item) => (
-            <span aria-current={step === item.value ? 'step' : undefined} key={item.value}>
-              {item.value}. {item.label}
-            </span>
-          ))}
-        </nav>
-
-        {step === 1 ? (
+        {logo === null ? (
           <UploadStep
             error={fileError}
             isPreparing={isPreparing}
@@ -333,63 +316,51 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
             template={template}
           />
         ) : null}
-        {logo ? (
-          <>
-            {step === 2 ? (
-              <CropStep
-                crop={crop}
-                logo={logo}
-                onApply={() => setStep(3)}
-                onChange={setCrop}
-                onReplace={replaceFile}
-              />
-            ) : null}
-            {step === 3 ? (
-              <PlacementStep
-                crop={crop}
-                error={exportError}
-                isExporting={isExporting}
-                logo={logo}
-                onBack={() => setStep(2)}
-                onChange={setPlacement}
-                onPreview={() => void openResult()}
-                placement={placement}
-                template={template}
-              />
-            ) : null}
-            {step === 4 && downloadUrl ? (
-              <SendStep
-                crop={crop}
-                downloadUrl={downloadUrl}
-                error={sending.error}
-                fileName={getDownloadName(logo.fileName, template)}
-                isSending={sending.isSending}
-                logo={logo}
-                onBack={() => setStep(3)}
-                onSend={(company) => void sending.send(company, preparePng)}
-                placement={placement}
-                template={template}
-              />
-            ) : null}
-          </>
+        {logo && isCropping ? (
+          <CropStep
+            crop={crop}
+            logo={logo}
+            onApply={() => setIsCropping(false)}
+            onChange={setCrop}
+            onReplace={replaceFile}
+          />
+        ) : null}
+        {logo && !isCropping ? (
+          <PlacementStep
+            crop={crop}
+            exportError={exportError}
+            logo={logo}
+            onChange={setPlacement}
+            background={{
+              error: backgroundError,
+              isRemoved: cleaned !== null,
+              isRemoving: isRemovingBackground,
+              onRemove: () => void clearBackground(),
+              onRestore: () => setCleaned(null),
+            }}
+            onCrop={() => setIsCropping(true)}
+            onDownload={() => void download()}
+            onReplace={replaceFile}
+            onSend={(company) => void sending.send(company, preparePng)}
+            placement={placement}
+            sendError={sending.error}
+            isSending={sending.isSending}
+            template={template}
+          />
         ) : null}
       </main>
     </div>
   )
 }
 
-function useObjectUrl(blob: Blob | null): string | null {
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
-
+function useRevokeOnChange(logo: LoadedLogo | null) {
   useEffect(() => {
     return () => {
-      if (url) {
-        URL.revokeObjectURL(url)
+      if (logo) {
+        URL.revokeObjectURL(logo.url)
       }
     }
-  }, [url])
-
-  return url
+  }, [logo])
 }
 
 function useLogoSending(templateId: string) {
@@ -423,11 +394,6 @@ function RecipientHeader() {
       <Link aria-label="Cropper — на главную" className="recipient-header__brand" to={routePaths.home} viewTransition>
         <Brand label="Cropper" withMark />
       </Link>
-      <nav aria-label="Основная навигация">
-        <Link to={routePaths.home} viewTransition>На главную</Link>
-        <Link to={routePaths.templates} viewTransition>Мои шаблоны</Link>
-        <Link to={routePaths.login} viewTransition>Аккаунт</Link>
-      </nav>
     </header>
   )
 }
@@ -503,10 +469,28 @@ function TemplateRequirements({
 }: Readonly<{ children?: ReactNode; template: Template }>) {
   return (
     <aside className="panel recipient-sidebar recipient-requirements">
-      <h2>Требования шаблона</h2>
-      <p><strong>{template.width} × {template.height} px · {getFormatLabel(template.output_format)}</strong></p>
-      <p>Фон: {describeBackground(template.background_color)}</p>
-      <p>Отступы: {describePadding(template)}</p>
+      <h2>Требования</h2>
+      <dl className="recipient-specs">
+        <div>
+          <dt>Плашка</dt>
+          <dd>{template.width} × {template.height} px</dd>
+        </div>
+        <div>
+          <dt>Готовый файл</dt>
+          <dd>{getFormatLabel(template.output_format)}</dd>
+        </div>
+        <div>
+          <dt>Фон</dt>
+          <dd>{describeBackground(template.background_color)}</dd>
+        </div>
+        <div>
+          <dt>Отступы</dt>
+          <dd>{describePadding(template)}</dd>
+        </div>
+      </dl>
+      {template.description ? (
+        <p className="recipient-note">{template.description}</p>
+      ) : null}
       {children}
     </aside>
   )
@@ -662,32 +646,52 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
   )
 }
 
-interface PlacementStepProps {
-  crop: CropArea
+interface BackgroundControl {
   error: string | null
-  isExporting: boolean
+  isRemoved: boolean
+  isRemoving: boolean
+  onRemove: () => void
+  onRestore: () => void
+}
+
+interface PlacementStepProps {
+  background: BackgroundControl
+  crop: CropArea
+  exportError: string | null
+  isSending: boolean
   logo: LoadedLogo
-  onBack: () => void
   onChange: (placement: Placement) => void
-  onPreview: () => void
+  onCrop: () => void
+  onDownload: () => void
+  onReplace: () => void
+  onSend: (company: string) => void
   placement: Placement
+  sendError: string | null
   template: Template
 }
 
 function PlacementStep({
+  background,
   crop,
-  error,
-  isExporting,
+  exportError,
+  isSending,
   logo,
-  onBack,
   onChange,
-  onPreview,
+  onCrop,
+  onDownload,
+  onReplace,
+  onSend,
   placement,
+  sendError,
   template,
 }: Readonly<PlacementStepProps>) {
   const plateRef = useRef<HTMLDivElement>(null)
   const dragStart = useRef<{ placement: Placement; x: number; y: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const hasBackground = useMemo(
+    () => hasOwnBackground(logo.image, template.background_color),
+    [logo, template.background_color],
+  )
 
   const geometry = getLogoGeometry(logo, crop, template, placement)
   const safeWidth = template.width - template.padding_left - template.padding_right
@@ -733,8 +737,11 @@ function PlacementStep({
     <div className="recipient-grid">
       <section className="panel recipient-workspace">
         <div className="recipient-workspace__head">
-          <div><h2>Разместите логотип</h2><p>{logo.fileName}</p></div>
-          <div><button onClick={() => onChange(CENTERED_PLACEMENT)} type="button">Сбросить</button><button onClick={onBack} type="button">Обрезать заново</button></div>
+          <div><h2>Логотип на плашке</h2><p>{logo.fileName}</p></div>
+          <div>
+            <button onClick={onCrop} type="button">Обрезать</button>
+            <button onClick={onReplace} type="button">Заменить файл</button>
+          </div>
         </div>
         <div className="recipient-stage recipient-stage--placement">
           <div
@@ -744,7 +751,10 @@ function PlacementStep({
             onPointerMove={handlePointerMove}
             onPointerUp={stopDragging}
             ref={plateRef}
-            style={{ aspectRatio: `${template.width} / ${template.height}` }}
+            style={{
+              aspectRatio: `${template.width} / ${template.height}`,
+              width: `min(100%, ${Math.round(Math.min(600, (380 * template.width) / template.height))}px)`,
+            }}
           >
             <LogoCanvas crop={crop} logo={logo} placement={placement} template={template} />
             <div
@@ -770,68 +780,80 @@ function PlacementStep({
             ) : null}
           </div>
         </div>
+        <div className="recipient-scale">
+          <label htmlFor="logo-scale">Размер</label>
+          <input
+            id="logo-scale"
+            max="100"
+            min="20"
+            onChange={(event) => onChange({ ...placement, scale: Number(event.target.value) })}
+            type="range"
+            value={placement.scale}
+          />
+          <output htmlFor="logo-scale">{placement.scale} %</output>
+          <button className="outline-button" onClick={() => onChange({ ...placement, x: 0.5, y: 0.5 })} type="button">
+            Центрировать
+          </button>
+          <span>{describeOffset(offsetX, offsetY)}</span>
+        </div>
         <p className="recipient-workspace__hint">
-          Оранжевая рамка — охранная зона {safeWidth} × {safeHeight} px. В готовом файле она не отображается.
+          Логотип можно перетаскивать. Оранжевая рамка — охранная зона, в готовый файл она не попадёт.
         </p>
-      </section>
-
-      <aside className="panel recipient-sidebar recipient-scale">
-        <h2>Масштаб</h2>
-        <label htmlFor="logo-scale">Размер логотипа</label>
-        <output htmlFor="logo-scale">{placement.scale} %</output>
-        <input
-          id="logo-scale"
-          max="100"
-          min="20"
-          onChange={(event) => onChange({ ...placement, scale: Number(event.target.value) })}
-          type="range"
-          value={placement.scale}
-        />
-        <button className="outline-button" onClick={() => onChange({ ...placement, x: 0.5, y: 0.5 })} type="button">
-          Центрировать
-        </button>
-        <p>Смещение от центра: <strong>{describeOffset(offsetX, offsetY)}</strong></p>
         {isStretched ? (
           <p aria-atomic="true" aria-live="polite" className="recipient-warning">
             Логотип растянут больше исходного размера и может выглядеть размытым. Загрузите файл
             покрупнее или оставьте этот.
           </p>
         ) : null}
-        <p>Логотип можно двигать мышью внутри плашки. Пропорции при масштабе не меняются.</p>
-        {error ? <p className="recipient-error" role="alert">{error}</p> : null}
-        <button className="primary-button" disabled={isExporting} onClick={onPreview} type="button">
-          {isExporting ? 'Готовим файл…' : 'Далее: проверка и отправка'}
-        </button>
-      </aside>
+        {hasBackground ? (
+          <div className="recipient-warning">
+            <p>
+              У логотипа свой фон — на плашке будет виден прямоугольник. Можно убрать его
+              автоматически или загрузить PNG с прозрачным фоном или SVG.
+            </p>
+            <button
+              className="outline-button"
+              disabled={background.isRemoving}
+              onClick={background.onRemove}
+              type="button"
+            >
+              {background.isRemoving ? 'Убираем фон…' : 'Убрать фон'}
+            </button>
+          </div>
+        ) : null}
+        {background.isRemoved ? (
+          <div className="recipient-notice">
+            <p>Фон убран. Проверьте края логотипа на плашке.</p>
+            <button className="outline-button" onClick={background.onRestore} type="button">
+              Вернуть фон
+            </button>
+          </div>
+        ) : null}
+        {background.error ? <p className="recipient-error" role="alert">{background.error}</p> : null}
+      </section>
+
+      <TemplateRequirements template={template}>
+        <SendForm
+          error={sendError ?? exportError}
+          format={getFormatLabel(template.output_format)}
+          isSending={isSending}
+          onDownload={onDownload}
+          onSend={onSend}
+        />
+      </TemplateRequirements>
     </div>
   )
 }
 
-interface SendStepProps {
-  crop: CropArea
-  downloadUrl: string
+interface SendFormProps {
   error: string | null
-  fileName: string
+  format: string
   isSending: boolean
-  logo: LoadedLogo
-  onBack: () => void
+  onDownload: () => void
   onSend: (company: string) => void
-  placement: Placement
-  template: Template
 }
 
-function SendStep({
-  crop,
-  downloadUrl,
-  error,
-  fileName,
-  isSending,
-  logo,
-  onBack,
-  onSend,
-  placement,
-  template,
-}: Readonly<SendStepProps>) {
+function SendForm({ error, format, isSending, onDownload, onSend }: Readonly<SendFormProps>) {
   const [company, setCompany] = useState('')
   const [isChecked, setIsChecked] = useState(false)
   const name = company.trim()
@@ -846,44 +868,26 @@ function SendStep({
   }
 
   return (
-    <div className="recipient-grid">
-      <section className="panel recipient-workspace">
-        <h2>Проверьте и отправьте</h2>
-        <div className="recipient-stage recipient-stage--result">
-          <div
-            className={template.background_color ? 'result-plate' : 'result-plate plate--transparent'}
-            style={{ aspectRatio: `${template.width} / ${template.height}` }}
-          >
-            <LogoCanvas crop={crop} logo={logo} placement={placement} template={template} />
-          </div>
-        </div>
-        <p className="recipient-result__name">{fileName}</p>
-        <p className="recipient-workspace__hint">Серый фон вокруг плашки не входит в изображение.</p>
-      </section>
-
-      <TemplateRequirements template={template}>
-        <form className="recipient-send" noValidate onSubmit={handleSubmit}>
-          <FormField error={companyError} htmlFor="company" label="Название компании *">
-            <input
-              {...getErrorProps('company', companyError)}
-              autoComplete="organization"
-              id="company"
-              maxLength={100}
-              name="company"
-              onChange={(event) => setCompany(event.target.value)}
-              value={company}
-            />
-          </FormField>
-          {error ? <p className="recipient-error" role="alert">{error}</p> : null}
-          <button className="primary-button" disabled={isSending} type="submit">
-            {isSending ? 'Отправляем…' : 'Отправить логотип'}
-          </button>
-        </form>
-        <a className="outline-button" download={fileName} href={downloadUrl}>
-          Скачать {getFormatLabel(template.output_format)}
-        </a>
-        <button className="outline-button" onClick={onBack} type="button">Вернуться к правкам</button>
-      </TemplateRequirements>
-    </div>
+    <form className="recipient-send" noValidate onSubmit={handleSubmit}>
+      <FormField error={companyError} htmlFor="company" label="Название компании">
+        <input
+          {...getErrorProps('company', companyError)}
+          autoComplete="organization"
+          id="company"
+          maxLength={100}
+          name="company"
+          onChange={(event) => setCompany(event.target.value)}
+          placeholder="ООО «Ромашка»"
+          value={company}
+        />
+      </FormField>
+      {error ? <p className="recipient-error" role="alert">{error}</p> : null}
+      <button className="primary-button" disabled={isSending} type="submit">
+        {isSending ? 'Отправляем…' : 'Отправить организатору'}
+      </button>
+      <button className="outline-button" onClick={onDownload} type="button">
+        Скачать {format} себе
+      </button>
+    </form>
   )
 }

@@ -11,6 +11,7 @@ import {
 import { TemplateForm } from '../../../features/templates/ui/TemplateForm'
 import { TemplatePreview } from '../../../features/templates/ui/TemplatePreview'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
+import { ArrowLeftIcon } from '../../../shared/ui/icons'
 
 export function Component() {
   const navigate = useNavigate()
@@ -50,12 +51,15 @@ export function Component() {
 
   return (
     <section className="template-new-page" aria-labelledby="template-new-title">
+      <Link className="back-link" to={routePaths.templates} viewTransition>
+        <ArrowLeftIcon />
+        Мои шаблоны
+      </Link>
       <div className="page-head">
         <div>
           <h1 id="template-new-title">Новый шаблон</h1>
-          <p>Укажите параметры плашки. Компании получат их вместе со ссылкой.</p>
+          <p>Задайте плашку — справа сразу видно, как она будет выглядеть.</p>
         </div>
-        <Link to={routePaths.templates} viewTransition>К списку шаблонов</Link>
       </div>
       <div className="template-new-page__body">
         <TemplateForm

@@ -1,40 +1,51 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
 import {
   deleteLogo,
+  deleteTemplate,
   getArchiveUrl,
   getLogoUrl,
   getLogos,
   getTemplate,
+  setTemplateOpen,
 } from '../../../features/templates/api/templatesApi'
 import {
   describeBackground,
   describePadding,
-  describeRowSummary,
   describeUploadFormats,
   formatReceivedAt,
   getFormatLabel,
   getTemplateLink,
 } from '../../../features/templates/lib/templateText'
+import { useCopyLink } from '../../../features/templates/lib/useCopyLink'
 import type { Logo, Template } from '../../../features/templates/model/templates.types'
+import { InviteForm } from '../../../features/templates/ui/InviteForm'
+import { PlateThumb } from '../../../features/templates/ui/PlateThumb'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
+import { IconButton } from '../../../shared/ui/IconButton'
+import {
+  ArrowLeftIcon,
+  CheckIcon,
+  CopyIcon,
+  DownloadIcon,
+  ExternalIcon,
+  LockIcon,
+  TrashIcon,
+  UnlockIcon,
+} from '../../../shared/ui/icons'
 import { TemplatePageSkeleton } from '../../../shared/ui/PageSkeletons'
+import { SearchField } from '../../../shared/ui/SearchField'
 
 type LoadResult = { id: string } & ({ template: Template } | { message: string })
 type LogosResult = { id: string } & ({ logos: Logo[] } | { message: string })
 
-type CopyState = 'idle' | 'copied' | 'failed'
-type Tab = 'logos' | 'settings'
-
 export function Component() {
   const { templateId = '' } = useParams()
   const location = useLocation()
+  const { isCreated, routeTemplate } = readRouteState(location.state, templateId)
+  const [load, setTemplate] = useTemplate(templateId, routeTemplate)
   const [logos, removeLogo] = useLogos(templateId)
-  const [copy, copyLink] = useCopyLink()
-  const { initialTab, isCreated, routeTemplate } = readRouteState(location.state, templateId)
-  const [tab, setTab] = useState<Tab>(initialTab)
-  const load = useTemplate(templateId, routeTemplate)
 
   if (!load) {
     return <TemplatePageSkeleton />
@@ -50,103 +61,155 @@ export function Component() {
     )
   }
 
-  const { template } = load
-  const link = getTemplateLink(template.id)
-
   return (
     <section className="template-page" aria-labelledby="template-title">
-      <TemplateHead copy={copy} isCreated={isCreated} onCopy={() => void copyLink(link)} template={template} />
-      <TemplateTabs logos={logos} onChange={setTab} tab={tab} />
-
-      {tab === 'logos' ? (
-        <ReceivedLogos
-          onDeleted={removeLogo}
-          result={logos}
-          template={template}
-        />
-      ) : (
-        <TemplateSettings link={link} onCopy={() => void copyLink(link)} template={template} />
-      )}
+      <Link className="back-link" to={routePaths.templates} viewTransition>
+        <ArrowLeftIcon />
+        Мои шаблоны
+      </Link>
+      <TemplateHero isCreated={isCreated} onChange={setTemplate} template={load.template} />
+      <ReceivedLogos onDeleted={removeLogo} result={logos} template={load.template} />
     </section>
   )
 }
 
-interface TemplateHeadProps {
-  copy: CopyState
+interface TemplateHeroProps {
   isCreated: boolean
-  onCopy: () => void
+  onChange: (template: Template) => void
   template: Template
 }
 
-function TemplateHead({ copy, isCreated, onCopy, template }: Readonly<TemplateHeadProps>) {
-  const summary = describeRowSummary(template)
+function TemplateHero({ isCreated, onChange, template }: Readonly<TemplateHeroProps>) {
+  const navigate = useNavigate()
+  const [copy, copyLink] = useCopyLink()
+  const [isPending, setIsPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const link = getTemplateLink(template.id)
+
+  async function run(action: () => Promise<void>) {
+    setError(null)
+    setIsPending(true)
+    try {
+      await action()
+    } catch (requestError) {
+      setError(getErrorMessage(requestError))
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  function toggleOpen() {
+    return run(async () => onChange(await setTemplateOpen(template.id, !template.is_open)))
+  }
+
+  function remove() {
+    const question = `Удалить шаблон «${template.name}»? Загруженные по нему логотипы тоже будут удалены.`
+    if (!confirm(question)) {
+      return
+    }
+    void run(async () => {
+      await deleteTemplate(template.id)
+      navigate(routePaths.templates, { replace: true, viewTransition: true })
+    })
+  }
 
   return (
-    <>
-      <div className="page-head">
-        <div>
-          <h1 id="template-title">{template.name}</h1>
-          <p>
-            {template.width} × {template.height}&nbsp;px · {getFormatLabel(template.output_format)} ·{' '}
-            {summary.charAt(0).toLowerCase() + summary.slice(1)}
-          </p>
-        </div>
-        <button className="primary-button" onClick={onCopy} type="button">
-          Скопировать ссылку
-        </button>
+    <header className="panel template-hero">
+      <div className="template-hero__plate">
+        <PlateThumb box={{ height: 160, width: 260 }} template={template} />
       </div>
-      {isCreated ? (
-        <output className="template-share__notice">
-          ✓ Шаблон создан. Скопируйте ссылку и отправьте её компаниям.
-        </output>
-      ) : null}
-      {copy === 'copied' ? (
-        <output className="template-share__notice">✓ Ссылка скопирована</output>
-      ) : null}
-      {copy === 'failed' ? (
-        <p className="form-error" role="alert">
-          Не удалось скопировать. Откройте «Настройки шаблона» и выделите ссылку вручную.
-        </p>
-      ) : null}
-    </>
-  )
-}
-
-interface TemplateTabsProps {
-  logos: LogosResult | null
-  onChange: (tab: Tab) => void
-  tab: Tab
-}
-
-function TemplateTabs({ logos, onChange, tab }: Readonly<TemplateTabsProps>) {
-  const current = (value: Tab) => (tab === value ? 'page' : undefined)
-  const count = logos && 'logos' in logos ? logos.logos.length : null
-
-  return (
-    <nav aria-label="Разделы шаблона" className="template-tabs">
-      <button aria-current={current('logos')} onClick={() => onChange('logos')} type="button">
-        Полученные логотипы{count === null ? '' : ` · ${count}`}
-      </button>
-      <button aria-current={current('settings')} onClick={() => onChange('settings')} type="button">
-        Настройки шаблона
-      </button>
-    </nav>
+      <div className="template-hero__info">
+        <h1 id="template-title">
+          {template.name}
+          {template.is_open ? null : <span className="badge">Сбор закрыт</span>}
+        </h1>
+        <dl className="template-specs">
+          <div>
+            <dt>Размер</dt>
+            <dd>{template.width} × {template.height}&nbsp;px</dd>
+          </div>
+          <div>
+            <dt>Формат</dt>
+            <dd>{getFormatLabel(template.output_format)}</dd>
+          </div>
+          <div>
+            <dt>Фон</dt>
+            <dd>
+              <span
+                className={template.background_color ? 'swatch' : 'swatch checkerboard'}
+                style={{ background: template.background_color ?? undefined }}
+              />
+              {describeBackground(template.background_color)}
+            </dd>
+          </div>
+          <div>
+            <dt>Отступы</dt>
+            <dd>{describePadding(template)}</dd>
+          </div>
+          <div>
+            <dt>Принимаем</dt>
+            <dd>{describeUploadFormats(template.upload_formats)}</dd>
+          </div>
+        </dl>
+        <div className="share-link">
+          <span className="share-link__url">{link}</span>
+          <button className="primary-button" onClick={() => void copyLink(link)} type="button">
+            {copy === 'copied' ? <CheckIcon /> : <CopyIcon />}
+            {copy === 'copied' ? 'Скопировано' : 'Скопировать ссылку'}
+          </button>
+        </div>
+        <InviteForm template={template} />
+        {isCreated && copy === 'idle' ? (
+          <output className="template-hero__notice">
+            Шаблон создан. Скопируйте ссылку и отправьте её компаниям.
+          </output>
+        ) : null}
+        {copy === 'failed' ? (
+          <p className="form-error" role="alert">Не удалось скопировать. Выделите ссылку вручную.</p>
+        ) : null}
+        {error ? <p className="form-error" role="alert">{error}</p> : null}
+      </div>
+      <div className="template-hero__actions">
+        <a
+          aria-label="Открыть страницу для компаний"
+          className="icon-button"
+          data-tooltip="Открыть страницу для компаний"
+          href={link}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <ExternalIcon />
+        </a>
+        <IconButton
+          disabled={isPending}
+          label={template.is_open ? 'Закрыть сбор логотипов' : 'Открыть сбор логотипов'}
+          onClick={() => void toggleOpen()}
+        >
+          {template.is_open ? <LockIcon /> : <UnlockIcon />}
+        </IconButton>
+        <IconButton disabled={isPending} label="Удалить шаблон" onClick={remove} tone="danger">
+          <TrashIcon />
+        </IconButton>
+      </div>
+    </header>
   )
 }
 
 function readRouteState(state: unknown, templateId: string) {
-  const routeState = state as { created?: boolean; tab?: Tab; template?: Template } | null
+  const routeState = state as { created?: boolean; template?: Template } | null
   const routeTemplate = routeState?.template?.id === templateId ? routeState.template : null
   const isCreated = Boolean(routeState?.created && routeTemplate)
-  const initialTab: Tab = isCreated || routeState?.tab === 'settings' ? 'settings' : 'logos'
-  return { initialTab, isCreated, routeTemplate }
+  return { isCreated, routeTemplate }
 }
 
-function useTemplate(templateId: string, routeTemplate: Template | null): LoadResult | null {
-  const [result, setResult] = useState<LoadResult | null>(null)
+function useTemplate(templateId: string, routeTemplate: Template | null) {
+  const [result, setResult] = useState<LoadResult | null>(
+    routeTemplate ? { id: templateId, template: routeTemplate } : null,
+  )
+  const hasTemplate = result?.id === templateId && 'template' in result
 
   useEffect(() => {
-    if (routeTemplate) {
+    if (hasTemplate) {
       return
     }
 
@@ -162,12 +225,11 @@ function useTemplate(templateId: string, routeTemplate: Template | null): LoadRe
     return () => {
       isCurrent = false
     }
-  }, [routeTemplate, templateId])
+  }, [hasTemplate, templateId])
 
-  if (routeTemplate) {
-    return { id: templateId, template: routeTemplate }
-  }
-  return result?.id === templateId ? result : null
+  const setTemplate = (template: Template) => setResult({ id: template.id, template })
+
+  return [result?.id === templateId ? result : null, setTemplate] as const
 }
 
 function useLogos(templateId: string) {
@@ -198,72 +260,6 @@ function useLogos(templateId: string) {
   return [result?.id === templateId ? result : null, remove] as const
 }
 
-function useCopyLink() {
-  const [copy, setCopy] = useState<CopyState>('idle')
-
-  useEffect(() => {
-    if (copy !== 'copied') {
-      return
-    }
-
-    const timer = setTimeout(() => setCopy('idle'), 2500)
-    return () => clearTimeout(timer)
-  }, [copy])
-
-  async function copyLink(link: string) {
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopy('copied')
-    } catch {
-      setCopy('failed')
-    }
-  }
-
-  return [copy, copyLink] as const
-}
-
-interface TemplateSettingsProps {
-  link: string
-  onCopy: () => void
-  template: Template
-}
-
-function TemplateSettings({ link, onCopy, template }: Readonly<TemplateSettingsProps>) {
-  return (
-    <div className="panel template-share">
-      <div className="template-share__main">
-        <h2>Ссылка для подготовки логотипа</h2>
-        <p className="template-share__lead">
-          Одна и та же ссылка подходит всем компаниям. В ней уже заданы размер, фон и отступы.
-        </p>
-        <p className="template-share__link">{link}</p>
-        <div className="template-share__actions">
-          <button className="primary-button" onClick={onCopy} type="button">
-            Скопировать ссылку
-          </button>
-          <a className="outline-button" href={link} rel="noreferrer" target="_blank">
-            Открыть редактор
-          </a>
-        </div>
-        <h3>Что увидит представитель компании</h3>
-        <ol className="template-share__steps">
-          <li>Загрузку {describeUploadFormats(template.upload_formats)}</li>
-          <li>Обрезку и размещение логотипа на плашке</li>
-          <li>Проверку и отправку готового файла вам в кабинет</li>
-        </ol>
-      </div>
-      <aside className="template-summary">
-        <h3>{template.name}</h3>
-        <p className="template-summary__size">
-          {template.width} × {template.height}&nbsp;px · {getFormatLabel(template.output_format)}
-        </p>
-        <p>Фон: {describeBackground(template.background_color)}</p>
-        <p>Отступы: {describePadding(template)}</p>
-      </aside>
-    </div>
-  )
-}
-
 interface ReceivedLogosProps {
   onDeleted: (logoId: string) => void
   result: LogosResult | null
@@ -274,15 +270,9 @@ function ReceivedLogos({ onDeleted, result, template }: Readonly<ReceivedLogosPr
   const [search, setSearch] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const format = getFormatLabel(template.output_format)
-
-  if (!result) {
-    return <output className="page-note">Загружаем логотипы…</output>
-  }
-
-  if ('message' in result) {
-    return <p className="form-error" role="alert">{result.message}</p>
-  }
+  const logos = result && 'logos' in result ? result.logos : []
+  const query = search.trim().toLowerCase()
+  const visible = logos.filter((logo) => logo.company.toLowerCase().includes(query))
 
   async function remove(logo: Logo) {
     if (!confirm(`Удалить логотип компании «${logo.company}»? Вернуть его будет нельзя.`)) {
@@ -301,73 +291,96 @@ function ReceivedLogos({ onDeleted, result, template }: Readonly<ReceivedLogosPr
     }
   }
 
-  const query = search.trim().toLowerCase()
-  const visible = result.logos.filter((logo) => logo.company.toLowerCase().includes(query))
-
   return (
-    <>
-      <div className="logo-bar">
-        <div className="form-field">
-          <label className="form-field__label" htmlFor="logo-search">Поиск компании</label>
-          <input
-            autoComplete="off"
-            id="logo-search"
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Название"
-            type="search"
-            value={search}
-          />
-        </div>
-        {result.logos.length > 0 ? (
-          <a className="primary-button" download href={getArchiveUrl(template.id)}>
-            Скачать все · ZIP
-          </a>
+    <section aria-labelledby="logos-title" className="logos">
+      <div className="logos__bar">
+        <h2 id="logos-title">
+          Логотипы <span>{logos.length}</span>
+        </h2>
+        {logos.length > 0 ? (
+          <>
+            <SearchField label="Найти компанию" onChange={setSearch} value={search} />
+            <a className="outline-button" download href={getArchiveUrl(template.id)}>
+              <DownloadIcon />
+              Скачать все · ZIP
+            </a>
+          </>
         ) : null}
       </div>
+
+      {result === null ? <output className="page-note">Загружаем логотипы…</output> : null}
+      {result && 'message' in result ? <p className="form-error" role="alert">{result.message}</p> : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
 
-      {visible.length > 0 ? (
-        <div className="panel logo-table">
-          <div aria-hidden="true" className="logo-table__head">
-            <span>Логотип</span>
-            <span>Компания</span>
-            <span>Получен</span>
-            <span>Файл</span>
-          </div>
-          <ul className="logo-table__rows">
-            {visible.map((logo) => {
-              const url = getLogoUrl(template.id, logo.id)
-
-              return (
-                <li className="logo-row" key={logo.id}>
-                  <div className="logo-row__tile">
-                    <img alt={`Логотип компании ${logo.company}`} loading="lazy" src={url} />
-                  </div>
-                  <h2>{logo.company}</h2>
-                  <time dateTime={logo.created_at}>{formatReceivedAt(logo.created_at)}</time>
-                  <div className="logo-row__actions">
-                    <a className="outline-button" download href={url}>Скачать {format}</a>
-                    <button disabled={pendingId === logo.id} onClick={() => void remove(logo)} type="button">
-                      Удалить
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+      {result && 'logos' in result && logos.length === 0 ? (
+        <div className="logos__empty">
+          <PlateThumb box={{ height: 72, width: 128 }} template={template} />
+          <p>
+            Логотипов пока нет. Отправьте ссылку компаниям — готовые файлы появятся здесь, уже{' '}
+            {template.width} × {template.height}&nbsp;px в {getFormatLabel(template.output_format)}.
+          </p>
         </div>
       ) : null}
-      {result.logos.length > 0 && visible.length === 0 ? (
+
+      {visible.length > 0 ? (
+        <ul className="logo-grid">
+          {visible.map((logo) => (
+            <LogoCard
+              isPending={pendingId === logo.id}
+              key={logo.id}
+              logo={logo}
+              onDelete={() => void remove(logo)}
+              template={template}
+            />
+          ))}
+        </ul>
+      ) : null}
+      {logos.length > 0 && visible.length === 0 ? (
         <p className="page-note">По запросу «{search.trim()}» ничего не найдено.</p>
       ) : null}
+    </section>
+  )
+}
 
-      <div className="panel logo-note">
-        <h2>Логотипы появляются здесь после отправки участником</h2>
-        <p>
-          Все файлы уже по требованиям шаблона: {template.width} × {template.height}&nbsp;px,{' '}
-          {format}.
-        </p>
+interface LogoCardProps {
+  isPending: boolean
+  logo: Logo
+  onDelete: () => void
+  template: Template
+}
+
+function LogoCard({ isPending, logo, onDelete, template }: Readonly<LogoCardProps>) {
+  const url = getLogoUrl(template.id, logo.id)
+
+  return (
+    <li className="logo-card">
+      <div className="logo-card__image">
+        <img
+          alt={`Логотип компании ${logo.company}`}
+          className="checkerboard"
+          loading="lazy"
+          src={url}
+          style={{ aspectRatio: `${template.width} / ${template.height}` }}
+        />
       </div>
-    </>
+      <div className="logo-card__info">
+        <h3>{logo.company}</h3>
+        <time dateTime={logo.created_at}>{formatReceivedAt(logo.created_at)}</time>
+      </div>
+      <div className="logo-card__actions">
+        <a
+          aria-label={`Скачать ${getFormatLabel(template.output_format)}`}
+          className="icon-button"
+          data-tooltip={`Скачать ${getFormatLabel(template.output_format)}`}
+          download
+          href={url}
+        >
+          <DownloadIcon />
+        </a>
+        <IconButton disabled={isPending} label="Удалить" onClick={onDelete} tone="danger">
+          <TrashIcon />
+        </IconButton>
+      </div>
+    </li>
   )
 }

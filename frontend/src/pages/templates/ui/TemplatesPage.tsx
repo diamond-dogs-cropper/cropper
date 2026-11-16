@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
-import {
-  deleteTemplate,
-  getTemplates,
-  getTemplatesSnapshot,
-  setTemplateOpen,
-} from '../../../features/templates/api/templatesApi'
+import { getTemplates, getTemplatesSnapshot } from '../../../features/templates/api/templatesApi'
 import { formatTemplateCount } from '../../../features/templates/lib/templateText'
 import type { Template } from '../../../features/templates/model/templates.types'
 import { TemplateRow } from '../../../features/templates/ui/TemplateRow'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { ButtonLink } from '../../../shared/ui/ButtonLink'
 import { TemplatesPageSkeleton } from '../../../shared/ui/PageSkeletons'
+import { SearchField } from '../../../shared/ui/SearchField'
 
 type ListState =
   | { status: 'loading' }
@@ -25,8 +21,6 @@ export function Component() {
     return templates ? { status: 'ready', templates } : { status: 'loading' }
   })
   const [query, setQuery] = useState('')
-  const [pendingId, setPendingId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     let isCurrent = true
@@ -48,44 +42,6 @@ export function Component() {
       isCurrent = false
     }
   }, [])
-
-  function changeTemplates(change: (templates: Template[]) => Template[]) {
-    setState((current) =>
-      current.status === 'ready' ? { status: 'ready', templates: change(current.templates) } : current,
-    )
-  }
-
-  async function runAction(template: Template, action: () => Promise<void>) {
-    setActionError(null)
-    setPendingId(template.id)
-
-    try {
-      await action()
-    } catch (error) {
-      setActionError(getErrorMessage(error))
-    } finally {
-      setPendingId(null)
-    }
-  }
-
-  function toggleOpen(template: Template) {
-    return runAction(template, async () => {
-      const updated = await setTemplateOpen(template.id, !template.is_open)
-      changeTemplates((templates) => templates.map((item) => (item.id === updated.id ? updated : item)))
-    })
-  }
-
-  function remove(template: Template) {
-    const question = `Удалить шаблон «${template.name}»? Загруженные по нему логотипы тоже будут удалены.`
-    if (!globalThis.confirm(question)) {
-      return Promise.resolve()
-    }
-
-    return runAction(template, async () => {
-      await deleteTemplate(template.id)
-      changeTemplates((templates) => templates.filter((item) => item.id !== template.id))
-    })
-  }
 
   const templates = state.status === 'ready' ? state.templates : []
   const needle = query.trim().toLowerCase()
@@ -122,42 +78,18 @@ export function Component() {
       {state.status === 'ready' && templates.length > 0 ? (
         <>
           <div className="list-toolbar">
-            <input
-              aria-label="Поиск по названию"
-              autoComplete="off"
-              name="search"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Найти шаблон по названию"
-              type="search"
-              value={query}
-            />
+            <SearchField label="Найти шаблон" onChange={setQuery} value={query} />
             <span aria-live="polite">{formatTemplateCount(visible.length)}</span>
           </div>
-          {actionError ? <p className="form-error" role="alert">{actionError}</p> : null}
-          <div className="panel template-table">
-            <div aria-hidden="true" className="template-table__head">
-              <span>Плашка</span>
-              <span>Название</span>
-              <span>Параметры</span>
-              <span>Создан</span>
-              <span>Действия</span>
-            </div>
-            {visible.length > 0 ? (
-              <ul className="template-table__rows">
-                {visible.map((template) => (
-                  <TemplateRow
-                    isPending={pendingId === template.id}
-                    key={template.id}
-                    onDelete={(item) => void remove(item)}
-                    onToggleOpen={(item) => void toggleOpen(item)}
-                    template={template}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="page-note">По запросу «{query.trim()}» ничего не найдено.</p>
-            )}
-          </div>
+          {visible.length > 0 ? (
+            <ul className="panel template-list">
+              {visible.map((template) => (
+                <TemplateRow key={template.id} template={template} />
+              ))}
+            </ul>
+          ) : (
+            <p className="page-note">По запросу «{query.trim()}» ничего не найдено.</p>
+          )}
         </>
       ) : null}
     </section>

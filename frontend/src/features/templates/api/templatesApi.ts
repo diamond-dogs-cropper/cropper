@@ -73,3 +73,10 @@ export async function deleteTemplate(id: string): Promise<void> {
     templatesSnapshot = templatesSnapshot.filter((template) => template.id !== id)
   }
 }
+
+export function sendInvite(templateId: string, email: string): Promise<void> {
+  return apiRequest<undefined>(`${TEMPLATES_URL}/${templateId}/invites`, {
+    body: JSON.stringify({ email }),
+    method: 'POST',
+  })
+}

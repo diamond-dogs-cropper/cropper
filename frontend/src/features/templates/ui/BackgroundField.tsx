@@ -16,7 +16,8 @@ export function BackgroundField({ error, onChange, values }: Readonly<Background
   return (
     <div className="form-field">
       <span className="form-field__label">Фон плашки</span>
-      <SegmentedControl<BackgroundMode>
+      <div className="background-row">
+        <SegmentedControl<BackgroundMode>
         label="Фон плашки"
         name="background"
         onChange={(mode) => onChange({ transparent: mode === 'transparent' })}
@@ -24,7 +25,6 @@ export function BackgroundField({ error, onChange, values }: Readonly<Background
           { label: 'Цвет', value: 'color' },
           { label: 'Прозрачный', value: 'transparent' },
         ]}
-        showRadio
         value={values.transparent ? 'transparent' : 'color'}
       />
       <div className="color-input">
@@ -46,6 +46,7 @@ export function BackgroundField({ error, onChange, values }: Readonly<Background
           spellCheck={false}
           value={values.backgroundColor}
         />
+      </div>
       </div>
       {error ? (
         <span className="form-field__error" id="background-error" role="alert">

@@ -29,8 +29,8 @@ export function PaddingField({ error, onChange, values }: Readonly<PaddingFieldP
   }
 
   return (
-    <div className="form-section form-section--safe">
-      <h3>Охранные отступы</h3>
+    <div className="form-field form-section--safe">
+      <span className="form-field__label">Охранные отступы</span>
       <SegmentedControl<PaddingMode>
         label="Режим отступов"
         name="padding-mode"

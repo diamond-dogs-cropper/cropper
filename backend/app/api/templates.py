@@ -3,10 +3,12 @@ from urllib.parse import quote
 from fastapi import APIRouter, Response
 
 from app.api.deps import CurrentUser, DbSession
+from app.errors import AppError
 from app.models import Logo, Template
+from app.schemas.invite import InviteIn
 from app.schemas.logo import LogoOut
 from app.schemas.template import CollectionState, TemplateIn, TemplateOut
-from app.services import images, logos, templates
+from app.services import images, logos, mail, templates
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
@@ -50,6 +52,15 @@ def set_collection(
 @router.delete("/{template_id}", status_code=204)
 def delete_template(template_id: str, user: CurrentUser, db: DbSession) -> None:
     templates.delete(db, templates.get_owned(db, user, template_id))
+
+
+@router.post("/{template_id}/invites", status_code=204)
+def send_invite(template_id: str, body: InviteIn, user: CurrentUser, db: DbSession) -> None:
+    template = templates.get_owned(db, user, template_id)
+    if not template.is_open:
+        message = "Сбор закрыт — откройте его, чтобы пригласить компанию"
+        raise AppError(409, "collection_closed", message)
+    mail.send(mail.build_invite(template, body.email))
 
 
 @router.get("/{template_id}/logos")

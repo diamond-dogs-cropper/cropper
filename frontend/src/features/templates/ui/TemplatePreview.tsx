@@ -44,7 +44,6 @@ export function TemplatePreview({ outputFormat, plate }: Readonly<TemplatePrevie
               }}
             >
               <strong>Логотип компании</strong>
-              <span>Пример размещения</span>
             </div>
           </div>
         ) : (
@@ -53,17 +52,14 @@ export function TemplatePreview({ outputFormat, plate }: Readonly<TemplatePrevie
       </div>
       {plate ? (
         <div className="template-preview__legend">
-          <strong className="legend-plate">
-            Плашка: {plate.width} × {plate.height}&nbsp;px
-          </strong>
-          <strong className="legend-safe">
-            Безопасная область: {plate.width - plate.padding.left - plate.padding.right} ×{' '}
-            {plate.height - plate.padding.top - plate.padding.bottom}&nbsp;px
-          </strong>
-          <span>
-            Цвет рамки совпадает с цветом полей слева: синяя — размер плашки, оранжевая — охранные
-            отступы. В готовый файл рамки не попадут.
+          <span className="legend-plate">
+            Плашка {plate.width} × {plate.height}&nbsp;px
           </span>
+          <span className="legend-safe">
+            Место для логотипа {plate.width - plate.padding.left - plate.padding.right} ×{' '}
+            {plate.height - plate.padding.top - plate.padding.bottom}&nbsp;px
+          </span>
+          <span>Рамки в готовый файл не попадут</span>
         </div>
       ) : null}
     </section>

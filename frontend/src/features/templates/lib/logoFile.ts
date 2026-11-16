@@ -206,6 +206,127 @@ function findBounds(pixels: ImageData): Bounds | null {
   return bounds.right < bounds.left ? null : bounds
 }
 
+export function hasOwnBackground(image: HTMLImageElement, plateColor: string | null): boolean {
+  const pixels = readPixels(image)
+  if (!pixels || hasTransparency(pixels.data)) {
+    return false
+  }
+
+  const background = findBackground(pixels)
+  if (!background || plateColor === null) {
+    return true
+  }
+  const plate = Uint8ClampedArray.from([1, 3, 5].map((start) => Number.parseInt(plateColor.slice(start, start + 2), 16)))
+  return colorDistance(background, 0, plate) > BACKGROUND_TOLERANCE
+}
+
+const FILL_TOLERANCE = 32
+const EDGE_SOFTNESS = 48
+
+function fillBackground({ data, height, width }: ImageData, background: Uint8ClampedArray): Uint8Array {
+  const removed = new Uint8Array(width * height)
+  const queue = new Int32Array(width * height)
+  let head = 0
+  let tail = 0
+  const visit = (pixel: number) => {
+    if (!removed[pixel] && colorDistance(data, pixel * 4, background) <= FILL_TOLERANCE) {
+      removed[pixel] = 1
+      queue[tail] = pixel
+      tail += 1
+    }
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    visit(x)
+    visit((height - 1) * width + x)
+  }
+  for (let y = 0; y < height; y += 1) {
+    visit(y * width)
+    visit(y * width + width - 1)
+  }
+  while (head < tail) {
+    const pixel = queue[head]
+    head += 1
+    const x = pixel % width
+    if (x > 0) {
+      visit(pixel - 1)
+    }
+    if (x < width - 1) {
+      visit(pixel + 1)
+    }
+    if (pixel >= width) {
+      visit(pixel - width)
+    }
+    if (pixel < width * (height - 1)) {
+      visit(pixel + width)
+    }
+  }
+  return removed
+}
+
+// края логотипа сглажены с фоном: делаем их полупрозрачными и убираем примесь цвета фона, иначе
+// вокруг логотипа остаётся светлый ореол
+function softenEdge(data: Uint8ClampedArray, index: number, background: Uint8ClampedArray) {
+  const distance = colorDistance(data, index, background)
+  if (distance >= FILL_TOLERANCE + EDGE_SOFTNESS) {
+    return
+  }
+  const alpha = (distance - FILL_TOLERANCE) / EDGE_SOFTNESS
+  for (let channel = 0; channel < 3; channel += 1) {
+    data[index + channel] = (data[index + channel] - background[channel] * (1 - alpha)) / alpha
+  }
+  data[index + 3] = Math.round(data[index + 3] * alpha)
+}
+
+function clearBackground(pixels: ImageData, background: Uint8ClampedArray) {
+  const { data, height, width } = pixels
+  const removed = fillBackground(pixels, background)
+
+  for (let pixel = 0; pixel < removed.length; pixel += 1) {
+    if (removed[pixel]) {
+      data[pixel * 4 + 3] = 0
+      continue
+    }
+    const x = pixel % width
+    const touchesBackground =
+      (x > 0 && removed[pixel - 1]) ||
+      (x < width - 1 && removed[pixel + 1]) ||
+      (pixel >= width && removed[pixel - width]) ||
+      (pixel < width * (height - 1) && removed[pixel + width])
+    if (touchesBackground) {
+      softenEdge(data, pixel * 4, background)
+    }
+  }
+}
+
+export async function removeBackground(logo: LoadedLogo): Promise<LoadedLogo> {
+  const { naturalHeight: height, naturalWidth: width } = logo.image
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) {
+    throw new Error('Браузер не поддерживает обработку изображений')
+  }
+
+  context.drawImage(logo.image, 0, 0)
+  const pixels = context.getImageData(0, 0, width, height)
+  const background = findBackground(pixels)
+  if (!background) {
+    throw new Error('Не удалось определить цвет фона: углы картинки разного цвета')
+  }
+
+  clearBackground(pixels, background)
+  if (!findBounds(pixels)) {
+    throw new Error('После удаления фона ничего не осталось')
+  }
+  context.putImageData(pixels, 0, 0)
+
+  const blob = await canvasToBlob(canvas, 'png')
+  const image = await loadImage(new File([blob], logo.fileName, { type: 'image/png' }))
+  return { fileName: logo.fileName, image, sourceFormat: 'png', url: image.src }
+}
+
 export function suggestCrop(image: HTMLImageElement): CropArea {
   const pixels = readPixels(image)
   const bounds = pixels ? findBounds(pixels) : null
@@ -286,6 +407,8 @@ export function drawLogo(
   }
 
   const geometry = getLogoGeometry(logo, crop, template, placement)
+  // по умолчанию 'low': при сильном уменьшении большого файла появляются муар и рваные края
+  context.imageSmoothingQuality = 'high'
   context.drawImage(
     logo.image,
     geometry.sourceX,

@@ -22,6 +22,13 @@ export const uploadFormats: { label: string; value: UploadFormat }[] = [
   { label: 'JPG', value: 'jpg' },
 ]
 
+export const sizePresets: [number, number][] = [
+  [400, 220],
+  [300, 300],
+  [512, 512],
+  [1200, 400],
+]
+
 export type PaddingMode = 'all' | 'sides'
 
 export interface FormValues {

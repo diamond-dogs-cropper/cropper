@@ -7,15 +7,15 @@ import { LogoCanvas } from './LogoCanvas'
 
 interface SentStepProps {
   crop: CropArea
-  downloadUrl: string
   fileName: string
   logo: LoadedLogo
+  onDownload: () => void
   placement: Placement
   sent: Logo
   template: Template
 }
 
-export function SentStep({ crop, downloadUrl, fileName, logo, placement, sent, template }: Readonly<SentStepProps>) {
+export function SentStep({ crop, fileName, logo, onDownload, placement, sent, template }: Readonly<SentStepProps>) {
   return (
     <section className="panel recipient-sent">
       <output className="recipient-sent__notice">✓ Файл передан организатору</output>
@@ -40,9 +40,9 @@ export function SentStep({ crop, downloadUrl, fileName, logo, placement, sent, t
         </div>
       </div>
       <div className="recipient-sent__actions">
-        <a className="outline-button" download={fileName} href={downloadUrl}>
+        <button className="outline-button" onClick={onDownload} type="button">
           Скачать {getFormatLabel(template.output_format)}
-        </a>
+        </button>
         <Link className="outline-button" to={routePaths.home} viewTransition>На главную</Link>
       </div>
     </section>
