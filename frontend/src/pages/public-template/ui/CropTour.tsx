@@ -48,15 +48,8 @@ export function CropTour() {
     target?.scrollIntoView({ block: 'nearest' })
 
     const measure = () => {
-      const rect = target?.getBoundingClientRect()
-      // на больших экранах страница увеличена через zoom, а позиции внутри неё задаются до увеличения
-      const zoom = document.documentElement.currentCSSZoom ?? 1
-      setBox(
-        rect
-          ? new DOMRect(rect.x / zoom, rect.y / zoom, rect.width / zoom, rect.height / zoom)
-          : null,
-      )
-      setViewport({ height: globalThis.innerHeight / zoom, width: globalThis.innerWidth / zoom })
+      setBox(target?.getBoundingClientRect() ?? null)
+      setViewport({ height: globalThis.innerHeight, width: globalThis.innerWidth })
     }
     const options = { capture: true, passive: true }
 

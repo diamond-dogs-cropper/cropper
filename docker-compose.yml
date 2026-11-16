@@ -28,6 +28,12 @@ services:
       MINIO_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-cropper}
       MINIO_SECRET_KEY: ${STORAGE_SECRET_KEY:?set STORAGE_SECRET_KEY in .env}
       MINIO_BUCKET: logos
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      MAIL_HOST: ${MAIL_HOST:-smtp.resend.com}
+      MAIL_PORT: ${MAIL_PORT:-2465}
+      MAIL_USERNAME: ${MAIL_USERNAME:-resend}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     depends_on:
       postgres:
         condition: service_healthy

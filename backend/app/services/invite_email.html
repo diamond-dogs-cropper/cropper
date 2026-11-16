@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$subject</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f7fc;">
+<span style="display:none;max-height:0;overflow:hidden;opacity:0;">Подготовьте логотип по требованиям — это займёт пару минут, регистрация не нужна.</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fc;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;color:#27334b;">
+  <tr><td style="padding:0 4px 20px;">
+    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td style="width:28px;height:28px;border-radius:7px;background:#5268e8;"></td>
+      <td style="padding-left:10px;font-size:17px;font-weight:600;color:#27334b;">$brand</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background:#ffffff;border:1px solid #dfe5f0;border-radius:14px;padding:32px;">
+    <p style="margin:0 0 8px;font-size:13px;color:#687892;">Приглашение загрузить логотип</p>
+    <h1 style="margin:0 0 12px;font-size:22px;line-height:30px;font-weight:600;color:#27334b;">$name</h1>
+    <p style="margin:0 0 24px;font-size:15px;line-height:23px;color:#4a5872;">Организатор просит прислать логотип вашей компании. По ссылке вы загрузите файл, обрежете лишнее и поставите логотип на плашку — готовый файл сразу уйдёт организатору.</p>
+    $description
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f5f7fc;border-radius:10px;">
+      <tr><td align="center" style="padding:24px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:${plate_width}px;height:${plate_height}px;background:$plate_background;border:1px solid #c9d2e6;">
+          <tr><td style="padding:${pad_top}px ${pad_right}px ${pad_bottom}px ${pad_left}px;">
+            <table role="presentation" width="100%" height="100%" cellpadding="0" cellspacing="0" style="border:1px dashed #d9730d;">
+              <tr><td align="center" style="font-size:12px;color:#9aa6bb;">Ваш логотип</td></tr>
+            </table>
+          </td></tr>
+        </table>
+        <p style="margin:12px 0 0;font-size:12px;color:#687892;">Плашка $width × $height px · пунктир — где будет логотип</p>
+      </td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;font-size:14px;line-height:20px;">
+      <tr>
+        <td style="padding:0 12px 0 0;vertical-align:top;"><span style="font-size:12px;color:#687892;">Размер</span><br><strong>$width × $height px</strong></td>
+        <td style="padding:0 12px;vertical-align:top;"><span style="font-size:12px;color:#687892;">Готовый файл</span><br><strong>$output_format</strong></td>
+        <td style="padding:0 0 0 12px;vertical-align:top;"><span style="font-size:12px;color:#687892;">Можно загрузить</span><br><strong>$upload_formats</strong></td>
+      </tr>
+    </table>
+    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td style="border-radius:9px;background:#5268e8;">
+        <a href="$link" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">Загрузить логотип</a>
+      </td>
+    </tr></table>
+    <p style="margin:16px 0 0;font-size:13px;line-height:19px;color:#687892;">Регистрация не нужна. Если кнопка не открывается, скопируйте ссылку:<br><a href="$link" style="color:#5268e8;word-break:break-all;">$link</a></p>
+  </td></tr>
+  <tr><td style="padding:20px 4px 0;font-size:12px;line-height:18px;color:#8a97ad;">Письмо отправлено через $brand по просьбе организатора. Если вы его не ждали, просто не отвечайте на него.</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
