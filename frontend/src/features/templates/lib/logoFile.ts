@@ -221,15 +221,33 @@ export function hasOwnBackground(image: HTMLImageElement, plateColor: string | n
 }
 
 const FILL_TOLERANCE = 32
-const EDGE_SOFTNESS = 48
+const EDGE_WIDTH = 3
+const HOLE_REACH = 0.05
 
-function fillBackground({ data, height, width }: ImageData, background: Uint8ClampedArray): Uint8Array {
+function neighbours(pixel: number, width: number, height: number): number[] {
+  const x = pixel % width
+  const result = []
+  if (x > 0) {
+    result.push(pixel - 1)
+  }
+  if (x < width - 1) {
+    result.push(pixel + 1)
+  }
+  if (pixel >= width) {
+    result.push(pixel - width)
+  }
+  if (pixel < width * (height - 1)) {
+    result.push(pixel + width)
+  }
+  return result
+}
+
+function findOuterBackground(isBackground: Uint8Array, width: number, height: number): Uint8Array {
   const removed = new Uint8Array(width * height)
   const queue = new Int32Array(width * height)
-  let head = 0
   let tail = 0
   const visit = (pixel: number) => {
-    if (!removed[pixel] && colorDistance(data, pixel * 4, background) <= FILL_TOLERANCE) {
+    if (isBackground[pixel] && !removed[pixel]) {
       removed[pixel] = 1
       queue[tail] = pixel
       tail += 1
@@ -244,57 +262,126 @@ function fillBackground({ data, height, width }: ImageData, background: Uint8Cla
     visit(y * width)
     visit(y * width + width - 1)
   }
-  while (head < tail) {
-    const pixel = queue[head]
-    head += 1
-    const x = pixel % width
-    if (x > 0) {
-      visit(pixel - 1)
-    }
-    if (x < width - 1) {
-      visit(pixel + 1)
-    }
-    if (pixel >= width) {
-      visit(pixel - width)
-    }
-    if (pixel < width * (height - 1)) {
-      visit(pixel + width)
-    }
+  for (let head = 0; head < tail; head += 1) {
+    neighbours(queue[head], width, height).forEach(visit)
   }
   return removed
 }
 
-// края логотипа сглажены с фоном: делаем их полупрозрачными и убираем примесь цвета фона, иначе
-// вокруг логотипа остаётся светлый ореол
-function softenEdge(data: Uint8ClampedArray, index: number, background: Uint8ClampedArray) {
-  const distance = colorDistance(data, index, background)
-  if (distance >= FILL_TOLERANCE + EDGE_SOFTNESS) {
+function distanceFrom(mask: Uint8Array, width: number, height: number, limit: number): Uint16Array {
+  const distance = new Uint16Array(width * height).fill(limit + 1)
+  const queue = new Int32Array(width * height)
+  let tail = 0
+  mask.forEach((value, pixel) => {
+    if (value) {
+      distance[pixel] = 0
+      queue[tail] = pixel
+      tail += 1
+    }
+  })
+
+  for (let head = 0; head < tail; head += 1) {
+    const pixel = queue[head]
+    if (distance[pixel] >= limit) {
+      continue
+    }
+    for (const next of neighbours(pixel, width, height)) {
+      if (distance[next] > distance[pixel] + 1) {
+        distance[next] = distance[pixel] + 1
+        queue[tail] = next
+        tail += 1
+      }
+    }
+  }
+  return distance
+}
+
+// Просвет внутри буквы («о», «е») тоже фон: он отделён от внешнего фона только тонким штрихом.
+// Светлые детали в глубине логотипа дальше от внешнего фона, они остаются.
+function addLetterHoles(removed: Uint8Array, isBackground: Uint8Array, width: number, height: number) {
+  const reach = Math.max(8, Math.round(Math.min(width, height) * HOLE_REACH))
+  const distance = distanceFrom(removed, width, height, reach)
+  const seen = new Uint8Array(width * height)
+  const region = new Int32Array(width * height)
+
+  for (let start = 0; start < removed.length; start += 1) {
+    if (!isBackground[start] || removed[start] || seen[start]) {
+      continue
+    }
+    region[0] = start
+    let size = 1
+    seen[start] = 1
+    let isHole = false
+    for (let head = 0; head < size; head += 1) {
+      isHole ||= distance[region[head]] <= reach
+      for (const next of neighbours(region[head], width, height)) {
+        if (isBackground[next] && !removed[next] && !seen[next]) {
+          seen[next] = 1
+          region[size] = next
+          size += 1
+        }
+      }
+    }
+    if (isHole) {
+      for (let index = 0; index < size; index += 1) {
+        removed[region[index]] = 1
+      }
+    }
+  }
+}
+
+function strongestNearby(source: ImageData, pixel: number, background: Uint8ClampedArray): number {
+  const { data, height, width } = source
+  const cx = pixel % width
+  const cy = Math.floor(pixel / width)
+  let strongest = 0
+  for (let y = Math.max(0, cy - EDGE_WIDTH - 1); y <= Math.min(height - 1, cy + EDGE_WIDTH + 1); y += 1) {
+    for (let x = Math.max(0, cx - EDGE_WIDTH - 1); x <= Math.min(width - 1, cx + EDGE_WIDTH + 1); x += 1) {
+      strongest = Math.max(strongest, colorDistance(data, (y * width + x) * 4, background))
+    }
+  }
+  return strongest
+}
+
+// Край логотипа в файле смешан с фоном на несколько пикселей. Долю логотипа в пикселе считаем
+// по тому, насколько он отличается от фона относительно соседнего «чистого» цвета логотипа,
+// и вычитаем примесь фона — иначе остаётся светлая рваная кайма.
+function softenEdge(pixels: ImageData, source: ImageData, pixel: number, background: Uint8ClampedArray) {
+  const { data } = pixels
+  const index = pixel * 4
+  const solid = strongestNearby(source, pixel, background)
+  const alpha = Math.min(1, colorDistance(data, index, background) / Math.max(solid, FILL_TOLERANCE * 2))
+
+  if (alpha > 0.95) {
     return
   }
-  const alpha = (distance - FILL_TOLERANCE) / EDGE_SOFTNESS
+  if (alpha < 0.08) {
+    data[index + 3] = 0
+    return
+  }
   for (let channel = 0; channel < 3; channel += 1) {
-    data[index + channel] = (data[index + channel] - background[channel] * (1 - alpha)) / alpha
+    data[index + channel] = background[channel] + (data[index + channel] - background[channel]) / alpha
   }
   data[index + 3] = Math.round(data[index + 3] * alpha)
 }
 
 function clearBackground(pixels: ImageData, background: Uint8ClampedArray) {
   const { data, height, width } = pixels
-  const removed = fillBackground(pixels, background)
+  const isBackground = new Uint8Array(width * height)
+  for (let pixel = 0; pixel < isBackground.length; pixel += 1) {
+    isBackground[pixel] = colorDistance(data, pixel * 4, background) <= FILL_TOLERANCE ? 1 : 0
+  }
+
+  const removed = findOuterBackground(isBackground, width, height)
+  addLetterHoles(removed, isBackground, width, height)
+  const distance = distanceFrom(removed, width, height, EDGE_WIDTH)
+  const source = new ImageData(data.slice(), width, height)
 
   for (let pixel = 0; pixel < removed.length; pixel += 1) {
     if (removed[pixel]) {
       data[pixel * 4 + 3] = 0
-      continue
-    }
-    const x = pixel % width
-    const touchesBackground =
-      (x > 0 && removed[pixel - 1]) ||
-      (x < width - 1 && removed[pixel + 1]) ||
-      (pixel >= width && removed[pixel - width]) ||
-      (pixel < width * (height - 1) && removed[pixel + width])
-    if (touchesBackground) {
-      softenEdge(data, pixel * 4, background)
+    } else if (distance[pixel] <= EDGE_WIDTH) {
+      softenEdge(pixels, source, pixel, background)
     }
   }
 }
