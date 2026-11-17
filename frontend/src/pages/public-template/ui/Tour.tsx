@@ -1,36 +1,31 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-const STORAGE_KEY = 'cropper-crop-tour-done'
+export interface TourHint {
+  target: string
+  text: string
+}
 
-const HINTS = [
-  {
-    target: 'frame',
-    text: 'Это рамка обрезки: всё, что за ней, в файл не попадёт. Тяните за углы или двигайте рамку целиком.',
-  },
-  {
-    target: 'auto',
-    text: 'Автообрезка сама находит края логотипа и убирает пустые поля. Нажмите, если сбили рамку.',
-  },
-  {
-    target: 'apply',
-    text: 'Когда рамка на месте, примените обрезку. Потом логотип разместится на плашке.',
-  },
-]
+interface TourProps {
+  hints: TourHint[]
+  isForced?: boolean
+  label: string
+  storageKey: string
+}
 
-function wasShown(): boolean {
+function wasShown(storageKey: string): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) !== null
+    return localStorage.getItem(storageKey) !== null
   } catch {
     return true
   }
 }
 
-export function CropTour() {
+export function Tour({ hints, isForced = false, label, storageKey }: Readonly<TourProps>) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const [index, setIndex] = useState(() => (wasShown() ? -1 : 0))
+  const [index, setIndex] = useState(() => (isForced || !wasShown(storageKey) ? 0 : -1))
   const [box, setBox] = useState<DOMRect | null>(null)
   const [viewport, setViewport] = useState({ height: 0, width: 0 })
-  const hint = HINTS[index]
+  const hint = hints[index]
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -68,18 +63,18 @@ export function CropTour() {
 
   function finish() {
     try {
-      localStorage.setItem(STORAGE_KEY, '1')
+      localStorage.setItem(storageKey, '1')
     } catch {
       // без localStorage подсказка покажется ещё раз, это не мешает работе
     }
     setIndex(-1)
   }
 
-  const isLast = index === HINTS.length - 1
+  const isLast = index === hints.length - 1
   const below = box ? box.bottom + 190 < viewport.height : true
 
   return (
-    <dialog aria-label="Подсказка по обрезке" className="crop-tour" onClose={finish} ref={dialogRef}>
+    <dialog aria-label={label} className="crop-tour" onClose={finish} ref={dialogRef}>
       {box ? (
         <div
           className="crop-tour__spot"
@@ -97,7 +92,7 @@ export function CropTour() {
             : undefined
         }
       >
-        <p className="crop-tour__count">Шаг {index + 1} из {HINTS.length}</p>
+        <p className="crop-tour__count">Шаг {index + 1} из {hints.length}</p>
         <p>{hint.text}</p>
         <div className="crop-tour__actions">
           <button
@@ -107,7 +102,8 @@ export function CropTour() {
           >
             {isLast ? 'Понятно' : 'Далее'}
           </button>
-          <button onClick={finish} type="button">Пропустить</button>
+          {index > 0 ? <button onClick={() => setIndex(index - 1)} type="button">Назад</button> : null}
+          {isLast ? null : <button onClick={finish} type="button">Пропустить</button>}
         </div>
       </div>
     </dialog>
