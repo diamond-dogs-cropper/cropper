@@ -39,7 +39,7 @@ import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { Brand } from '../../../shared/ui/Brand'
 import { FormField } from '../../../shared/ui/FormField'
 import { getErrorProps } from '../../../shared/ui/getErrorProps'
-import { CropTour } from './CropTour'
+import { Tour, type TourHint } from './Tour'
 import { LogoCanvas } from './LogoCanvas'
 import { SentStep } from './SentStep'
 
@@ -49,6 +49,31 @@ type LoadState = { templateId: string } & (
   | { message: string; status: 'error' }
   | { message: string; status: 'missing' }
 )
+
+const EDITOR_HINTS: TourHint[] = [
+  {
+    target: 'plate',
+    text: 'Так логотип будет выглядеть в готовом файле. Его можно перетаскивать мышью или пальцем. Оранжевая рамка — охранная зона, в файл она не попадёт.',
+  },
+  { target: 'scale', text: 'Здесь размер логотипа. «Центрировать» вернёт его в центр плашки.' },
+  {
+    target: 'crop',
+    text: 'Пустые поля вокруг логотипа уже обрезаны автоматически. Если что-то срезалось или осталось лишнее — нажмите «Обрезать».',
+  },
+  { target: 'send', text: 'Укажите название компании и отправьте — файл сразу уйдёт организатору.' },
+]
+
+const CROP_HINTS: TourHint[] = [
+  {
+    target: 'frame',
+    text: 'Это рамка обрезки: всё, что за ней, в файл не попадёт. Тяните за углы или двигайте рамку целиком.',
+  },
+  {
+    target: 'auto',
+    text: 'Автообрезка сама находит края логотипа и убирает пустые поля. Нажмите, если сбили рамку.',
+  },
+  { target: 'apply', text: 'Когда рамка на месте, примените обрезку — вернётесь к плашке.' },
+]
 
 const SNAP_DISTANCE = 0.01
 const MAX_STRETCH = 1.5
@@ -641,7 +666,7 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
           Продолжить без обрезки
         </button>
       </aside>
-      <CropTour />
+      <Tour hints={CROP_HINTS} label="Подсказка по обрезке" storageKey="cropper-crop-tour-done" />
     </div>
   )
 }
@@ -688,6 +713,7 @@ function PlacementStep({
   const plateRef = useRef<HTMLDivElement>(null)
   const dragStart = useRef<{ placement: Placement; x: number; y: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [tourRun, setTourRun] = useState(0)
   const hasBackground = useMemo(
     () => hasOwnBackground(logo.image, template.background_color),
     [logo, template.background_color],
@@ -739,13 +765,15 @@ function PlacementStep({
         <div className="recipient-workspace__head">
           <div><h2>Логотип на плашке</h2><p>{logo.fileName}</p></div>
           <div>
-            <button onClick={onCrop} type="button">Обрезать</button>
+            <button data-tour="crop" onClick={onCrop} type="button">Обрезать</button>
             <button onClick={onReplace} type="button">Заменить файл</button>
+            <button onClick={() => setTourRun(tourRun + 1)} type="button">Подсказки</button>
           </div>
         </div>
         <div className="recipient-stage recipient-stage--placement">
           <div
             className={template.background_color ? 'placement-plate' : 'placement-plate plate--transparent'}
+            data-tour="plate"
             onPointerCancel={stopDragging}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -780,7 +808,7 @@ function PlacementStep({
             ) : null}
           </div>
         </div>
-        <div className="recipient-scale">
+        <div className="recipient-scale" data-tour="scale">
           <label htmlFor="logo-scale">Размер</label>
           <input
             id="logo-scale"
@@ -832,6 +860,13 @@ function PlacementStep({
         {background.error ? <p className="recipient-error" role="alert">{background.error}</p> : null}
       </section>
 
+      <Tour
+        hints={EDITOR_HINTS}
+        isForced={tourRun > 0}
+        key={tourRun}
+        label="Подсказка по редактору"
+        storageKey="cropper-editor-tour-done"
+      />
       <TemplateRequirements template={template}>
         <SendForm
           error={sendError ?? exportError}
@@ -868,7 +903,7 @@ function SendForm({ error, format, isSending, onDownload, onSend }: Readonly<Sen
   }
 
   return (
-    <form className="recipient-send" noValidate onSubmit={handleSubmit}>
+    <form className="recipient-send" data-tour="send" noValidate onSubmit={handleSubmit}>
       <FormField error={companyError} htmlFor="company" label="Название компании">
         <input
           {...getErrorProps('company', companyError)}
