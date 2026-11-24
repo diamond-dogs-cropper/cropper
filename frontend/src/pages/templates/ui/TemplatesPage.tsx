@@ -17,8 +17,8 @@ type ListState =
 
 export function Component() {
   const [state, setState] = useState<ListState>(() => {
-    const templates = getTemplatesSnapshot()
-    return templates ? { status: 'ready', templates } : { status: 'loading' }
+    const snapshot = getTemplatesSnapshot()
+    return snapshot ? { status: 'ready', templates: snapshot } : { status: 'loading' }
   })
   const [query, setQuery] = useState('')
 
@@ -26,12 +26,12 @@ export function Component() {
     let isCurrent = true
 
     getTemplates()
-      .then((templates) => isCurrent && setState({ status: 'ready', templates }))
+      .then(loaded => isCurrent && setState({ status: 'ready', templates: loaded }))
       .catch((error: unknown) => {
         if (!isCurrent) {
           return
         }
-        setState((current) =>
+        setState(current =>
           current.status === 'ready'
             ? current
             : { status: 'error', message: getErrorMessage(error) },
@@ -45,7 +45,7 @@ export function Component() {
 
   const templates = state.status === 'ready' ? state.templates : []
   const needle = query.trim().toLowerCase()
-  const visible = templates.filter((template) => template.name.toLowerCase().includes(needle))
+  const visible = templates.filter(template => template.name.toLowerCase().includes(needle))
 
   return (
     <section className="templates-page" aria-labelledby="templates-title">
@@ -83,7 +83,7 @@ export function Component() {
           </div>
           {visible.length > 0 ? (
             <ul className="panel template-list">
-              {visible.map((template) => (
+              {visible.map(template => (
                 <TemplateRow key={template.id} template={template} />
               ))}
             </ul>

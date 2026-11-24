@@ -64,7 +64,7 @@ export function Component() {
         <section className="steps-section" aria-labelledby="steps-title">
           <h2 id="steps-title">От шаблона до готового логотипа</h2>
           <ol className="steps-grid">
-            {steps.map((step) => (
+            {steps.map(step => (
               <li key={step.number}>
                 <span>{step.number}</span>
                 <h3>{step.title}</h3>

@@ -16,7 +16,7 @@ export function TemplatesPageSkeleton() {
           <SkeletonLine size="small" />
         </div>
         <div className="panel template-list template-list--skeleton">
-          {[0, 1, 2].map((row) => (
+          {[0, 1, 2].map(row => (
             <div className="template-row" key={row}>
               <span className="skeleton skeleton-thumbnail" />
               <span className="skeleton-stack">

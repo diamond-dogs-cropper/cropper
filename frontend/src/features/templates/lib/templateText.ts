@@ -2,7 +2,7 @@ import type { Template } from '../model/templates.types'
 import { outputFormats } from './templateForm'
 
 export function getFormatLabel(format: Template['output_format']): string {
-  return outputFormats.find((item) => item.value === format)?.label ?? format
+  return outputFormats.find(item => item.value === format)?.label ?? format
 }
 
 export function describeBackground(color: string | null): string {
@@ -13,7 +13,7 @@ export function describeBackground(color: string | null): string {
 }
 
 export function describeUploadFormats(formats: Template['upload_formats']): string {
-  const labels = formats.map((format) => format.toUpperCase())
+  const labels = formats.map(format => format.toUpperCase())
   if (labels.length === 1) {
     return labels[0]
   }
@@ -61,7 +61,7 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', {
 
 export function formatCreatedAt(value: string): string {
   const parts = dateFormat.formatToParts(new Date(value))
-  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? ''
+  const part = (type: string) => parts.find(item => item.type === type)?.value ?? ''
 
   return `${part('day')} ${part('month').replace('.', '')} ${part('year')}`
 }

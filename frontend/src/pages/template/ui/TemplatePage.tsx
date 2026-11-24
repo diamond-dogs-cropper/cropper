@@ -79,6 +79,39 @@ interface TemplateHeroProps {
   template: Template
 }
 
+function TemplateSpecs({ template }: Readonly<{ template: Template }>) {
+  return (
+    <dl className="template-specs">
+      <div>
+        <dt>Размер</dt>
+        <dd>{template.width} × {template.height}&nbsp;px</dd>
+      </div>
+      <div>
+        <dt>Формат</dt>
+        <dd>{getFormatLabel(template.output_format)}</dd>
+      </div>
+      <div>
+        <dt>Фон</dt>
+        <dd>
+          <span
+            className={template.background_color ? 'swatch' : 'swatch checkerboard'}
+            style={{ background: template.background_color ?? undefined }}
+          />
+          {describeBackground(template.background_color)}
+        </dd>
+      </div>
+      <div>
+        <dt>Отступы</dt>
+        <dd>{describePadding(template)}</dd>
+      </div>
+      <div>
+        <dt>Принимаем</dt>
+        <dd>{describeUploadFormats(template.upload_formats)}</dd>
+      </div>
+    </dl>
+  )
+}
+
 function TemplateHero({ isCreated, onChange, template }: Readonly<TemplateHeroProps>) {
   const navigate = useNavigate()
   const [copy, copyLink] = useCopyLink()
@@ -123,34 +156,7 @@ function TemplateHero({ isCreated, onChange, template }: Readonly<TemplateHeroPr
           {template.name}
           {template.is_open ? null : <span className="badge">Сбор закрыт</span>}
         </h1>
-        <dl className="template-specs">
-          <div>
-            <dt>Размер</dt>
-            <dd>{template.width} × {template.height}&nbsp;px</dd>
-          </div>
-          <div>
-            <dt>Формат</dt>
-            <dd>{getFormatLabel(template.output_format)}</dd>
-          </div>
-          <div>
-            <dt>Фон</dt>
-            <dd>
-              <span
-                className={template.background_color ? 'swatch' : 'swatch checkerboard'}
-                style={{ background: template.background_color ?? undefined }}
-              />
-              {describeBackground(template.background_color)}
-            </dd>
-          </div>
-          <div>
-            <dt>Отступы</dt>
-            <dd>{describePadding(template)}</dd>
-          </div>
-          <div>
-            <dt>Принимаем</dt>
-            <dd>{describeUploadFormats(template.upload_formats)}</dd>
-          </div>
-        </dl>
+        <TemplateSpecs template={template} />
         <div className="share-link">
           <span className="share-link__url">{link}</span>
           <button className="primary-button" onClick={() => void copyLink(link)} type="button">
@@ -209,18 +215,16 @@ function useTemplate(templateId: string, routeTemplate: Template | null) {
   const hasTemplate = result?.id === templateId && 'template' in result
 
   useEffect(() => {
-    if (hasTemplate) {
-      return
-    }
-
     let isCurrent = true
 
-    getTemplate(templateId)
-      .then((template) => isCurrent && setResult({ id: templateId, template }))
-      .catch(
-        (error: unknown) =>
-          isCurrent && setResult({ id: templateId, message: getErrorMessage(error) }),
-      )
+    if (!hasTemplate) {
+      getTemplate(templateId)
+        .then(template => isCurrent && setResult({ id: templateId, template }))
+        .catch(
+          (error: unknown) =>
+            isCurrent && setResult({ id: templateId, message: getErrorMessage(error) }),
+        )
+    }
 
     return () => {
       isCurrent = false
@@ -239,7 +243,7 @@ function useLogos(templateId: string) {
     let isCurrent = true
 
     getLogos(templateId)
-      .then((items) => isCurrent && setResult({ id: templateId, logos: items }))
+      .then(items => isCurrent && setResult({ id: templateId, logos: items }))
       .catch(
         (error: unknown) =>
           isCurrent && setResult({ id: templateId, message: getErrorMessage(error) }),
@@ -251,9 +255,9 @@ function useLogos(templateId: string) {
   }, [templateId])
 
   const remove = (logoId: string) =>
-    setResult((current) =>
+    setResult(current =>
       current && 'logos' in current
-        ? { ...current, logos: current.logos.filter((logo) => logo.id !== logoId) }
+        ? { ...current, logos: current.logos.filter(logo => logo.id !== logoId) }
         : current,
     )
 
@@ -266,13 +270,34 @@ interface ReceivedLogosProps {
   template: Template
 }
 
+function LogosState({ result, template }: Readonly<Omit<ReceivedLogosProps, 'onDeleted'>>) {
+  if (result === null) {
+    return <output className="page-note">Загружаем логотипы…</output>
+  }
+  if ('message' in result) {
+    return <p className="form-error" role="alert">{result.message}</p>
+  }
+  if (result.logos.length > 0) {
+    return null
+  }
+  return (
+    <div className="logos__empty">
+      <PlateThumb box={{ height: 72, width: 128 }} template={template} />
+      <p>
+        Логотипов пока нет. Отправьте ссылку компаниям — готовые файлы появятся здесь, уже{' '}
+        {template.width} × {template.height}&nbsp;px в {getFormatLabel(template.output_format)}.
+      </p>
+    </div>
+  )
+}
+
 function ReceivedLogos({ onDeleted, result, template }: Readonly<ReceivedLogosProps>) {
   const [search, setSearch] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const logos = result && 'logos' in result ? result.logos : []
   const query = search.trim().toLowerCase()
-  const visible = logos.filter((logo) => logo.company.toLowerCase().includes(query))
+  const visible = logos.filter(logo => logo.company.toLowerCase().includes(query))
 
   async function remove(logo: Logo) {
     if (!confirm(`Удалить логотип компании «${logo.company}»? Вернуть его будет нельзя.`)) {
@@ -295,7 +320,7 @@ function ReceivedLogos({ onDeleted, result, template }: Readonly<ReceivedLogosPr
     <section aria-labelledby="logos-title" className="logos">
       <div className="logos__bar">
         <h2 id="logos-title">
-          Логотипы <span>{logos.length}</span>
+          Логотипы <span className="logos__count">{logos.length}</span>
         </h2>
         {logos.length > 0 ? (
           <>
@@ -308,23 +333,12 @@ function ReceivedLogos({ onDeleted, result, template }: Readonly<ReceivedLogosPr
         ) : null}
       </div>
 
-      {result === null ? <output className="page-note">Загружаем логотипы…</output> : null}
-      {result && 'message' in result ? <p className="form-error" role="alert">{result.message}</p> : null}
+      <LogosState result={result} template={template} />
       {error ? <p className="form-error" role="alert">{error}</p> : null}
-
-      {result && 'logos' in result && logos.length === 0 ? (
-        <div className="logos__empty">
-          <PlateThumb box={{ height: 72, width: 128 }} template={template} />
-          <p>
-            Логотипов пока нет. Отправьте ссылку компаниям — готовые файлы появятся здесь, уже{' '}
-            {template.width} × {template.height}&nbsp;px в {getFormatLabel(template.output_format)}.
-          </p>
-        </div>
-      ) : null}
 
       {visible.length > 0 ? (
         <ul className="logo-grid">
-          {visible.map((logo) => (
+          {visible.map(logo => (
             <LogoCard
               isPending={pendingId === logo.id}
               key={logo.id}

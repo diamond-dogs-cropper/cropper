@@ -30,12 +30,12 @@ export function InviteForm({ template }: Readonly<{ template: Template }>) {
   }
 
   return (
-    <form className="invite-form" onSubmit={(event) => void submit(event)}>
+    <form className="invite-form" onSubmit={event => void submit(event)}>
       <input
         aria-label="Почта компании"
         autoComplete="off"
         name="email"
-        onChange={(event) => setEmail(event.target.value)}
+        onChange={event => setEmail(event.target.value)}
         placeholder="Пригласить по почте: name@company.ru"
         required
         type="email"

@@ -1,3 +1,7 @@
+export const HTTP_NO_CONTENT = 204
+export const HTTP_UNAUTHORIZED = 401
+export const HTTP_NOT_FOUND = 404
+
 type ApiErrorDetails = {
   field: string
   message: string
@@ -48,7 +52,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     throw new ApiError(response.status, await readError(response))
   }
 
-  if (response.status === 204) {
+  if (response.status === HTTP_NO_CONTENT) {
     return undefined as T
   }
 

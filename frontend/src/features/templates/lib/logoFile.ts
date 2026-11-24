@@ -4,7 +4,13 @@ import { describeUploadFormats } from './templateText'
 
 export const MAX_LOGO_BYTES = 10 * 1024 * 1024
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+const PNG_SIGNATURE = '\u0089PNG\r\n\u001A\n'
+const JPEG_SIGNATURE = '\u00FF\u00D8\u00FF'
+const ALPHA = 3
+const COLOR_CHANNELS = 3
+const ANALYSIS_SIZE = 800
+const OPAQUE_ALPHA = 250
+const EXPORT_QUALITY = 0.92
 const FORMAT_LABELS: Record<UploadFormat, string> = {
   jpg: 'JPG',
   png: 'PNG',
@@ -34,8 +40,8 @@ export interface LoadedLogo {
 export const FULL_CROP: CropArea = { height: 1, width: 1, x: 0, y: 0 }
 export const CENTERED_PLACEMENT: Placement = { scale: 100, x: 0.5, y: 0.5 }
 
-function hasBytes(bytes: Uint8Array, signature: number[]): boolean {
-  return signature.every((value, index) => bytes[index] === value)
+function hasBytes(bytes: Uint8Array, signature: string): boolean {
+  return [...signature].every((char, index) => bytes[index] === char.codePointAt(0))
 }
 
 async function detectFormat(file: File): Promise<UploadFormat | null> {
@@ -44,7 +50,7 @@ async function detectFormat(file: File): Promise<UploadFormat | null> {
   if (hasBytes(prefix, PNG_SIGNATURE)) {
     return 'png'
   }
-  if (hasBytes(prefix, [0xFF, 0xD8, 0xFF])) {
+  if (hasBytes(prefix, JPEG_SIGNATURE)) {
     return 'jpg'
   }
 
@@ -92,7 +98,7 @@ export function getAcceptValue(formats: UploadFormat[]): string {
     svg: 'image/svg+xml,.svg',
   }
 
-  return formats.map((format) => mimeTypes[format]).join(',')
+  return formats.map(format => mimeTypes[format]).join(',')
 }
 
 export async function loadLogo(file: File, allowedFormats: UploadFormat[]): Promise<LoadedLogo> {
@@ -118,7 +124,7 @@ export async function loadLogo(file: File, allowedFormats: UploadFormat[]): Prom
   }
 
   const image = await loadImage(file)
-  return { fileName: file.name, image, sourceFormat, url: image.src }
+  return { image, sourceFormat, fileName: file.name, url: image.src }
 }
 
 interface Bounds {
@@ -132,7 +138,7 @@ const VISIBLE_ALPHA = 10
 const BACKGROUND_TOLERANCE = 16
 
 function readPixels(image: HTMLImageElement): ImageData | null {
-  const ratio = Math.min(1, 800 / Math.max(image.naturalWidth, image.naturalHeight))
+  const ratio = Math.min(1, ANALYSIS_SIZE / Math.max(image.naturalWidth, image.naturalHeight))
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio))
   canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio))
@@ -150,8 +156,8 @@ function readPixels(image: HTMLImageElement): ImageData | null {
 }
 
 function hasTransparency(pixels: Uint8ClampedArray): boolean {
-  for (let index = 3; index < pixels.length; index += 4) {
-    if (pixels[index] < 250) {
+  for (let index = ALPHA; index < pixels.length; index += 4) {
+    if (pixels[index] < OPAQUE_ALPHA) {
       return true
     }
   }
@@ -160,9 +166,9 @@ function hasTransparency(pixels: Uint8ClampedArray): boolean {
 
 
 function findBackground({ data, height, width }: ImageData): Uint8ClampedArray | null {
-  const corners = [0, width - 1, (height - 1) * width, height * width - 1].map((pixel) => pixel * 4)
-  const color = data.slice(corners[0], corners[0] + 3)
-  return corners.every((index) => colorDistance(data, index, color) <= BACKGROUND_TOLERANCE)
+  const corners = [0, width - 1, (height - 1) * width, height * width - 1].map(pixel => pixel * 4)
+  const color = data.slice(corners[0], corners[0] + COLOR_CHANNELS)
+  return corners.every(index => colorDistance(data, index, color) <= BACKGROUND_TOLERANCE)
     ? color
     : null
 }
@@ -170,11 +176,11 @@ function findBackground({ data, height, width }: ImageData): Uint8ClampedArray |
 function getVisibilityTest(pixels: ImageData): ((index: number) => boolean) | null {
   const { data } = pixels
   if (hasTransparency(data)) {
-    return (index) => data[index + 3] > VISIBLE_ALPHA
+    return index => data[index + ALPHA] > VISIBLE_ALPHA
   }
   const background = findBackground(pixels)
   return background
-    ? (index) => colorDistance(data, index, background) > BACKGROUND_TOLERANCE
+    ? index => colorDistance(data, index, background) > BACKGROUND_TOLERANCE
     : null
 }
 
@@ -210,13 +216,13 @@ export function hasOwnBackground(image: HTMLImageElement, plateColor: string | n
   if (!background || plateColor === null) {
     return true
   }
-  const plate = Uint8ClampedArray.from([1, 3, 5].map((start) => Number.parseInt(plateColor.slice(start, start + 2), 16)))
+  const plate = Uint8ClampedArray.from(plateColor.slice(1).match(/../g) ?? [], hex => Number.parseInt(hex, 16))
   return colorDistance(background, 0, plate) > BACKGROUND_TOLERANCE
 }
 
 // на большом фото обработка идёт секунды — в отдельном потоке страница не замирает
 function clearInWorker(pixels: ImageData, background: Uint8ClampedArray): Promise<ImageData> {
-  const worker = new Worker(new URL('./backgroundWorker.ts', import.meta.url), { type: 'module' })
+  const worker = new Worker(new URL('backgroundWorker.ts', import.meta.url), { type: 'module' })
 
   return new Promise((resolve, reject) => {
     worker.addEventListener('message', (event: MessageEvent<ImageData>) => {
@@ -256,7 +262,7 @@ export async function removeBackground(logo: LoadedLogo): Promise<LoadedLogo> {
 
   const blob = await canvasToBlob(canvas, 'png')
   const image = await loadImage(new File([blob], logo.fileName, { type: 'image/png' }))
-  return { fileName: logo.fileName, image, sourceFormat: 'png', url: image.src }
+  return { image, fileName: logo.fileName, sourceFormat: 'png', url: image.src }
 }
 
 export function suggestCrop(image: HTMLImageElement): CropArea {
@@ -300,9 +306,9 @@ export function getLogoGeometry(
     height,
     sourceHeight,
     sourceWidth,
+    width,
     sourceX: logo.image.naturalWidth * crop.x,
     sourceY: logo.image.naturalHeight * crop.y,
-    width,
     x: template.padding_left + (safeWidth - width) * placement.x,
     y: template.padding_top + (safeHeight - height) * placement.y,
   }
@@ -359,7 +365,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, outputFormat: OutputFormat): Pr
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => {
+      blob => {
         if (blob) {
           resolve(blob)
         } else {
@@ -367,7 +373,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, outputFormat: OutputFormat): Pr
         }
       },
       mimeType,
-      0.92,
+      EXPORT_QUALITY,
     )
   })
 }

@@ -54,14 +54,14 @@ export function PaddingField({ error, onChange, values }: Readonly<PaddingFieldP
             id="padding-all"
             inputMode="numeric"
             name="padding_all"
-            onChange={(event) => onChange({ paddingAll: event.target.value })}
+            onChange={event => onChange({ paddingAll: event.target.value })}
             value={values.paddingAll}
           />
         </FormField>
       ) : (
         <>
           <div className="form-grid">
-            {sides.map((side) => (
+            {sides.map(side => (
               <FormField htmlFor={`padding-${side.key}`} key={side.key} label={side.label}>
                 <input
                   {...getErrorProps('padding', error)}
@@ -69,7 +69,7 @@ export function PaddingField({ error, onChange, values }: Readonly<PaddingFieldP
                   id={`padding-${side.key}`}
                   inputMode="numeric"
                   name={`padding_${side.key}`}
-                  onChange={(event) =>
+                  onChange={event =>
                     onChange({ padding: { ...values.padding, [side.key]: event.target.value } })
                   }
                   value={values.padding[side.key]}

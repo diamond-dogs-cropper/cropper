@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react'
 
 export type CopyState = 'idle' | 'copied' | 'failed'
 
+const RESET_DELAY = 2500
+
 export function useCopyLink() {
   const [copy, setCopy] = useState<CopyState>('idle')
 
   useEffect(() => {
-    if (copy === 'idle') {
-      return
-    }
-
-    const timer = setTimeout(() => setCopy('idle'), 2500)
+    const timer = copy === 'idle' ? undefined : setTimeout(() => setCopy('idle'), RESET_DELAY)
     return () => clearTimeout(timer)
   }, [copy])
 

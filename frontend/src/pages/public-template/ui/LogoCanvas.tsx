@@ -14,12 +14,14 @@ interface LogoCanvasProps {
   template: Template
 }
 
+const PREVIEW_SIZE = 1200
+
 export function LogoCanvas({ crop, logo, placement, template }: Readonly<LogoCanvasProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     if (canvasRef.current) {
-      drawLogo(canvasRef.current, { crop, logo, placement, template }, 1200)
+      drawLogo(canvasRef.current, { crop, logo, placement, template }, PREVIEW_SIZE)
     }
   }, [crop, logo, placement, template])
 

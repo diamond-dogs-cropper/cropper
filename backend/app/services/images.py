@@ -11,9 +11,10 @@ def convert(png: bytes, output_format: str, background: str | None) -> bytes:
 
     image = Image.open(io.BytesIO(png)).convert("RGBA")
     result = io.BytesIO()
-    if output_format == "jpg":
-        plate = Image.new("RGBA", image.size, background or "#FFFFFF")
-        Image.alpha_composite(plate, image).convert("RGB").save(result, "JPEG", quality=92)
-    else:
-        image.save(result, "WEBP", quality=92)
+    match output_format:
+        case "jpg":
+            plate = Image.new("RGBA", image.size, background or "#FFFFFF")
+            Image.alpha_composite(plate, image).convert("RGB").save(result, "JPEG", quality=92)
+        case _:
+            image.save(result, "WEBP", quality=92)
     return result.getvalue()

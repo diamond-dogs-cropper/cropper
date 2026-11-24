@@ -1,6 +1,6 @@
 
 :root {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Inter Variable', system-ui, sans-serif;
   color: #27334b;
   background: #f5f7fc;
   font-synthesis: none;
@@ -891,23 +891,24 @@ legend.form-field__label {
 }
 
 .segmented {
+  width: fit-content;
   padding: 4px;
   border-radius: 8px;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: 2px;
   background: var(--background);
 }
 
 .segmented__option {
-  padding: 8px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   position: relative;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -1053,11 +1054,12 @@ legend.form-field__label {
 }
 
 .template-preview__legend .legend-safe {
+  color: var(--safe);
   font-size: 13px;
   font-weight: 500;
 }
 
-.template-preview__legend span:last-child {
+.template-preview__legend span:where(:last-child) {
   margin-left: auto;
 }
 
@@ -1421,6 +1423,7 @@ legend.form-field__label {
 }
 
 .placement-plate {
+  max-width: 100%;
   touch-action: none;
   cursor: grab;
 }
@@ -1470,7 +1473,7 @@ legend.form-field__label {
   border-color: #c43d58;
 }
 
-.segmented--radio .segmented__option input {
+.segmented--radio input {
   position: static;
   width: 12px;
   height: 12px;
@@ -1478,9 +1481,9 @@ legend.form-field__label {
   opacity: 1;
 }
 
-.form-field > input:focus-visible,
-.form-field > select:focus-visible,
-.form-field > textarea:focus-visible,
+.form-field > input:where(:focus-visible),
+.form-field > select:where(:focus-visible),
+.form-field > textarea:where(:focus-visible),
 .color-input:focus-within {
   outline: 3px solid rgb(82 104 232 / 30%);
   outline-offset: 2px;
@@ -1681,16 +1684,12 @@ legend.form-field__label {
   border: 2px dashed var(--safe);
 }
 
-.form-grid--plate .form-field > input {
+:where(.form-grid--plate) .form-field > input {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.form-section--safe .form-field > input {
+:where(.form-section--safe) .form-field > input {
   box-shadow: inset 3px 0 0 var(--safe);
-}
-
-.template-preview__legend .legend-safe {
-  color: var(--safe);
 }
 
 .recipient-crop-actions .recipient-autocrop {
@@ -1969,7 +1968,7 @@ legend.form-field__label {
   color: var(--muted);
 }
 
-.search-field input:focus-visible {
+.search-field input:where(:focus-visible) {
   border-color: var(--accent);
   outline: 3px solid rgb(82 104 232 / 18%);
 }
@@ -2040,6 +2039,10 @@ legend.form-field__label {
 
 .template-row:hover {
   background: #f7f8fe;
+}
+
+.template-list--skeleton .template-row {
+  min-height: 69px;
 }
 
 .template-row:has(.template-row__link:focus-visible) {
@@ -2232,7 +2235,7 @@ legend.form-field__label {
   font-weight: 600;
 }
 
-.logos__bar h2 span {
+.logos__count {
   margin-left: 4px;
   color: var(--muted);
   font-weight: 500;
@@ -2344,10 +2347,6 @@ legend.form-field__label {
   }
 }
 
-.template-list--skeleton .template-row {
-  min-height: 69px;
-}
-
 .template-hero--skeleton {
   min-height: 218px;
 }
@@ -2430,7 +2429,7 @@ legend.form-field__label {
   font-size: 13px;
 }
 
-.invite-form input:focus-visible {
+.invite-form input:where(:focus-visible) {
   border-color: var(--accent);
   outline: 3px solid rgb(82 104 232 / 18%);
 }
@@ -2461,6 +2460,10 @@ legend.form-field__label {
 }
 
 .chip-row {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -2528,16 +2531,6 @@ legend.form-field__label {
   box-shadow: 0 1px 2px rgb(39 51 75 / 12%);
 }
 
-.segmented__option {
-  padding: 5px 12px;
-  font-size: 13px;
-}
-
-.segmented {
-  width: fit-content;
-  gap: 2px;
-}
-
 @media (width <= 960px) {
   .template-preview {
     position: static;
@@ -2560,10 +2553,6 @@ legend.form-field__label {
   .background-row {
     flex-direction: column;
   }
-}
-
-.placement-plate {
-  max-width: 100%;
 }
 
 .recipient-scale {

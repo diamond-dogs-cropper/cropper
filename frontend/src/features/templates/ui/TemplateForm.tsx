@@ -32,11 +32,11 @@ export function TemplateForm({
 }: Readonly<TemplateFormProps>) {
   function toggleUploadFormat(format: UploadFormat) {
     const selected = values.uploadFormats.includes(format)
-      ? values.uploadFormats.filter((item) => item !== format)
+      ? values.uploadFormats.filter(item => item !== format)
       : [...values.uploadFormats, format]
 
     onChange({
-      uploadFormats: uploadFormats.map((item) => item.value).filter((item) => selected.includes(item)),
+      uploadFormats: uploadFormats.map(item => item.value).filter(item => selected.includes(item)),
     })
   }
 
@@ -51,7 +51,7 @@ export function TemplateForm({
             id="template-name"
             maxLength={100}
             name="name"
-            onChange={(event) => onChange({ name: event.target.value })}
+            onChange={event => onChange({ name: event.target.value })}
             placeholder="Партнёры конференции"
             value={values.name}
           />
@@ -66,7 +66,7 @@ export function TemplateForm({
             id="template-description"
             maxLength={500}
             name="description"
-            onChange={(event) => onChange({ description: event.target.value })}
+            onChange={event => onChange({ description: event.target.value })}
             placeholder="Например: логотип для экрана на сцене и бейджей"
             rows={2}
             value={values.description}
@@ -84,7 +84,7 @@ export function TemplateForm({
               id="template-width"
               inputMode="numeric"
               name="width"
-              onChange={(event) => onChange({ width: event.target.value })}
+              onChange={event => onChange({ width: event.target.value })}
               value={values.width}
             />
           </FormField>
@@ -95,13 +95,13 @@ export function TemplateForm({
               id="template-height"
               inputMode="numeric"
               name="height"
-              onChange={(event) => onChange({ height: event.target.value })}
+              onChange={event => onChange({ height: event.target.value })}
               value={values.height}
             />
           </FormField>
         </div>
-        <div aria-label="Готовые размеры" className="chip-row" role="group">
-          {sizePresets.map(([width, height]) => {
+        <fieldset aria-label="Готовые размеры" className="chip-row">
+          {sizePresets.map(({ height, width }) => {
             const isCurrent = values.width === String(width) && values.height === String(height)
             return (
               <button
@@ -115,7 +115,7 @@ export function TemplateForm({
               </button>
             )
           })}
-        </div>
+        </fieldset>
         <BackgroundField error={errors.background} onChange={onChange} values={values} />
         <PaddingField error={errors.padding} onChange={onChange} values={values} />
       </section>
@@ -128,7 +128,7 @@ export function TemplateForm({
         >
           <legend className="form-field__label">Компании могут загрузить</legend>
           <div className="chip-row">
-            {uploadFormats.map((format) => (
+            {uploadFormats.map(format => (
               <label className="chip" key={format.value}>
                 <input
                   checked={values.uploadFormats.includes(format.value)}
@@ -150,7 +150,7 @@ export function TemplateForm({
           <SegmentedControl<OutputFormat>
             label="Формат готового файла"
             name="output-format"
-            onChange={(outputFormat) => onChange({ outputFormat })}
+            onChange={outputFormat => onChange({ outputFormat })}
             options={outputFormats}
             value={values.outputFormat}
           />

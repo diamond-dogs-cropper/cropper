@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../shared/api/apiClient'
+import { ApiError, apiRequest, HTTP_UNAUTHORIZED } from '../../../shared/api/apiClient'
 import type { Credentials, User } from '../model/auth.types'
 
 const AUTH_URL = '/api/auth'
@@ -8,7 +8,7 @@ async function requestCurrentUser(): Promise<User | null> {
   try {
     return await apiRequest<User>(`${AUTH_URL}/me`)
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
+    if (error instanceof ApiError && error.status === HTTP_UNAUTHORIZED) {
       return null
     }
 

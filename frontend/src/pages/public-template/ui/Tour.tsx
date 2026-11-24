@@ -12,6 +12,8 @@ interface TourProps {
   storageKey: string
 }
 
+const CARD_HEIGHT = 190
+
 function wasShown(storageKey: string): boolean {
   try {
     return localStorage.getItem(storageKey) !== null
@@ -35,26 +37,21 @@ export function Tour({ hints, isForced = false, label, storageKey }: Readonly<To
   }, [hint])
 
   useLayoutEffect(() => {
-    if (!hint) {
-      return
-    }
+    const listeners = new AbortController()
+    if (hint) {
+      const target = document.querySelector(`[data-tour="${hint.target}"]`)
+      target?.scrollIntoView({ block: 'nearest' })
 
-    const target = document.querySelector(`[data-tour="${hint.target}"]`)
-    target?.scrollIntoView({ block: 'nearest' })
+      const measure = () => {
+        setBox(target?.getBoundingClientRect() ?? null)
+        setViewport({ height: globalThis.innerHeight, width: globalThis.innerWidth })
+      }
 
-    const measure = () => {
-      setBox(target?.getBoundingClientRect() ?? null)
-      setViewport({ height: globalThis.innerHeight, width: globalThis.innerWidth })
+      measure()
+      globalThis.addEventListener('resize', measure, { signal: listeners.signal })
+      globalThis.addEventListener('scroll', measure, { capture: true, passive: true, signal: listeners.signal })
     }
-    const options = { capture: true, passive: true }
-
-    measure()
-    globalThis.addEventListener('resize', measure)
-    globalThis.addEventListener('scroll', measure, options)
-    return () => {
-      globalThis.removeEventListener('resize', measure)
-      globalThis.removeEventListener('scroll', measure, options)
-    }
+    return () => listeners.abort()
   }, [hint])
 
   if (!hint) {
@@ -71,7 +68,7 @@ export function Tour({ hints, isForced = false, label, storageKey }: Readonly<To
   }
 
   const isLast = index === hints.length - 1
-  const below = box ? box.bottom + 190 < viewport.height : true
+  const below = box ? box.bottom + CARD_HEIGHT < viewport.height : true
 
   return (
     <dialog aria-label={label} className="crop-tour" onClose={finish} ref={dialogRef}>
@@ -87,7 +84,7 @@ export function Tour({ hints, isForced = false, label, storageKey }: Readonly<To
           box
             ? {
                 left: Math.max(16, Math.min(box.left, viewport.width - 336)),
-                top: below ? box.bottom + 20 : Math.max(16, box.top - 190),
+                top: below ? box.bottom + 20 : Math.max(16, box.top - CARD_HEIGHT),
               }
             : undefined
         }
