@@ -9,9 +9,9 @@ function updateSnapshot(template: Template) {
     return
   }
 
-  const exists = templatesSnapshot.some((item) => item.id === template.id)
+  const exists = templatesSnapshot.some(item => item.id === template.id)
   templatesSnapshot = exists
-    ? templatesSnapshot.map((item) => (item.id === template.id ? template : item))
+    ? templatesSnapshot.map(item => (item.id === template.id ? template : item))
     : [template, ...templatesSnapshot]
 }
 
@@ -70,7 +70,7 @@ export async function setTemplateOpen(id: string, isOpen: boolean): Promise<Temp
 export async function deleteTemplate(id: string): Promise<void> {
   await apiRequest<undefined>(`${TEMPLATES_URL}/${id}`, { method: 'DELETE' })
   if (templatesSnapshot) {
-    templatesSnapshot = templatesSnapshot.filter((template) => template.id !== id)
+    templatesSnapshot = templatesSnapshot.filter(template => template.id !== id)
   }
 }
 

@@ -78,13 +78,14 @@ def build_invite(template: LogoTemplate, recipient: str) -> EmailMessage:
 def send(message: EmailMessage) -> None:
     if not (settings.mail_username and settings.mail_password and settings.mail_from):
         raise AppError(503, "mail_not_configured", "Отправка писем не настроена")
+    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     try:
         with smtplib.SMTP_SSL(
-            settings.mail_host, settings.mail_port, context=ssl.create_default_context(), timeout=15
+            settings.mail_host, settings.mail_port, context=context, timeout=15
         ) as smtp:
             smtp.login(settings.mail_username, settings.mail_password)
             smtp.send_message(message)
     except (smtplib.SMTPException, OSError) as error:
         logger.warning("SMTP error: %s", error)
-        message = "Не удалось отправить письмо, попробуйте позже"
-        raise AppError(502, "mail_failed", message) from error
+        detail = "Не удалось отправить письмо, попробуйте позже"
+        raise AppError(502, "mail_failed", detail) from error

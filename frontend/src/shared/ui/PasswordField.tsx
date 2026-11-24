@@ -33,7 +33,7 @@ export function PasswordField({
         />
         <button
           aria-label={isVisible ? 'Скрыть пароль' : 'Показать пароль'}
-          onClick={() => setIsVisible((value) => !value)}
+          onClick={() => setIsVisible(value => !value)}
           type="button"
         >
           {isVisible ? 'Скрыть' : 'Показать'}

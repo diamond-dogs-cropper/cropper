@@ -66,8 +66,8 @@ export function Component() {
           error={error}
           errors={showErrors ? errors : { outputFormat: errors.outputFormat }}
           isPending={isPending}
-          onChange={(patch) => setValues((current) => ({ ...current, ...patch }))}
-          onSubmit={(event) => void handleSubmit(event)}
+          onChange={patch => setValues(current => ({ ...current, ...patch }))}
+          onSubmit={event => void handleSubmit(event)}
           values={values}
         />
         <TemplatePreview outputFormat={values.outputFormat} plate={readPlate(values)} />

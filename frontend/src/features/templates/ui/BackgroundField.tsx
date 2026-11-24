@@ -20,7 +20,7 @@ export function BackgroundField({ error, onChange, values }: Readonly<Background
         <SegmentedControl<BackgroundMode>
         label="Фон плашки"
         name="background"
-        onChange={(mode) => onChange({ transparent: mode === 'transparent' })}
+        onChange={mode => onChange({ transparent: mode === 'transparent' })}
         options={[
           { label: 'Цвет', value: 'color' },
           { label: 'Прозрачный', value: 'transparent' },
@@ -31,7 +31,7 @@ export function BackgroundField({ error, onChange, values }: Readonly<Background
         <input
           aria-label="Выбрать цвет"
           disabled={values.transparent}
-          onChange={(event) => onChange({ backgroundColor: event.target.value.toUpperCase() })}
+          onChange={event => onChange({ backgroundColor: event.target.value.toUpperCase() })}
           type="color"
           value={swatch}
         />
@@ -42,7 +42,7 @@ export function BackgroundField({ error, onChange, values }: Readonly<Background
           disabled={values.transparent}
           maxLength={7}
           name="background_color"
-          onChange={(event) => onChange({ backgroundColor: event.target.value.toUpperCase() })}
+          onChange={event => onChange({ backgroundColor: event.target.value.toUpperCase() })}
           spellCheck={false}
           value={values.backgroundColor}
         />

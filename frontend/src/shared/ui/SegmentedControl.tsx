@@ -19,7 +19,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div aria-label={label} className={className} role="radiogroup">
-      {options.map((option) => (
+      {options.map(option => (
         <label className="segmented__option" key={option.value}>
           <input
             checked={option.value === value}

@@ -9,6 +9,10 @@ export function colorDistance(data: Uint8ClampedArray, index: number, color: Uin
 const FILL_TOLERANCE = 32
 const EDGE_WIDTH = 3
 const HOLE_REACH = 0.05
+const COLOR_CHANNELS = 3
+const ALPHA = 3
+const SOLID_ALPHA = 0.95
+const CLEAR_ALPHA = 0.08
 
 function visitNeighbours(pixel: number, width: number, height: number, visit: (next: number) => void) {
   const x = pixel % width
@@ -58,20 +62,19 @@ function distanceFrom(mask: Uint8Array, width: number, height: number, limit: nu
   let tail = 0
   // в очередь идёт только граница маски: внутренние пиксели ничего не добавляют, а на большом
   // фото их миллионы
-  mask.forEach((value, pixel) => {
-    if (!value) {
-      return
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    if (mask[pixel]) {
+      distance[pixel] = 0
+      let isEdge = false
+      visitNeighbours(pixel, width, height, next => {
+        isEdge ||= !mask[next]
+      })
+      if (isEdge) {
+        queue[tail] = pixel
+        tail += 1
+      }
     }
-    distance[pixel] = 0
-    let isEdge = false
-    visitNeighbours(pixel, width, height, (next) => {
-      isEdge ||= !mask[next]
-    })
-    if (isEdge) {
-      queue[tail] = pixel
-      tail += 1
-    }
-  })
+  }
 
   const visit = (next: number, step: number) => {
     if (distance[next] > step) {
@@ -84,7 +87,7 @@ function distanceFrom(mask: Uint8Array, width: number, height: number, limit: nu
     const pixel = queue[head]
     const step = distance[pixel] + 1
     if (step <= limit) {
-      visitNeighbours(pixel, width, height, (next) => visit(next, step))
+      visitNeighbours(pixel, width, height, next => visit(next, step))
     }
   }
   return distance
@@ -107,10 +110,7 @@ function addLetterHoles(removed: Uint8Array, isBackground: Uint8Array, width: nu
     }
   }
 
-  for (let start = 0; start < removed.length; start += 1) {
-    if (!isBackground[start] || removed[start] || seen[start]) {
-      continue
-    }
+  const collectRegion = (start: number) => {
     size = 0
     visit(start)
     let isHole = false
@@ -118,9 +118,13 @@ function addLetterHoles(removed: Uint8Array, isBackground: Uint8Array, width: nu
       isHole ||= distance[region[head]] <= reach
       visitNeighbours(region[head], width, height, visit)
     }
-    if (isHole) {
-      for (let index = 0; index < size; index += 1) {
-        removed[region[index]] = 1
+    return isHole
+  }
+
+  for (let start = 0; start < removed.length; start += 1) {
+    if (isBackground[start] && !removed[start] && !seen[start] && collectRegion(start)) {
+      for (const pixel of region.subarray(0, size)) {
+        removed[pixel] = 1
       }
     }
   }
@@ -148,17 +152,17 @@ function softenEdge(pixels: ImageData, source: ImageData, pixel: number, backgro
   const solid = strongestNearby(source, pixel, background)
   const alpha = Math.min(1, colorDistance(data, index, background) / Math.max(solid, FILL_TOLERANCE * 2))
 
-  if (alpha > 0.95) {
+  if (alpha > SOLID_ALPHA) {
     return
   }
-  if (alpha < 0.08) {
-    data[index + 3] = 0
+  if (alpha < CLEAR_ALPHA) {
+    data[index + ALPHA] = 0
     return
   }
-  for (let channel = 0; channel < 3; channel += 1) {
+  for (let channel = 0; channel < COLOR_CHANNELS; channel += 1) {
     data[index + channel] = background[channel] + (data[index + channel] - background[channel]) / alpha
   }
-  data[index + 3] = Math.round(data[index + 3] * alpha)
+  data[index + ALPHA] = Math.round(data[index + ALPHA] * alpha)
 }
 
 export function clearBackground(pixels: ImageData, background: Uint8ClampedArray) {
@@ -171,12 +175,13 @@ export function clearBackground(pixels: ImageData, background: Uint8ClampedArray
   const removed = findOuterBackground(isBackground, width, height)
   addLetterHoles(removed, isBackground, width, height)
   const distance = distanceFrom(removed, width, height, EDGE_WIDTH)
-  const source = new ImageData(data.slice(), width, height)
+  const source = new ImageData(new Uint8ClampedArray(data), width, height)
 
-  for (let pixel = 0; pixel < removed.length; pixel += 1) {
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
     if (removed[pixel]) {
-      data[pixel * 4 + 3] = 0
-    } else if (distance[pixel] <= EDGE_WIDTH) {
+      data[pixel * 4 + ALPHA] = 0
+    }
+    if (!removed[pixel] && distance[pixel] <= EDGE_WIDTH) {
       softenEdge(pixels, source, pixel, background)
     }
   }

@@ -37,7 +37,7 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
     let isActive = true
 
     getCurrentUser()
-      .then((user) => {
+      .then(user => {
         if (isActive) {
           applyUser(user)
         }

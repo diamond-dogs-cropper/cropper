@@ -13,8 +13,8 @@ export function SearchField({ label, onChange, value }: Readonly<SearchFieldProp
       <input
         aria-label={label}
         autoComplete="off"
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => event.key === 'Escape' && onChange('')}
+        onChange={event => onChange(event.target.value)}
+        onKeyDown={event => event.key === 'Escape' && onChange('')}
         placeholder={label}
         type="search"
         value={value}

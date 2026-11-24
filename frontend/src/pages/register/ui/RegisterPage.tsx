@@ -47,7 +47,7 @@ export function Component() {
         <p className="auth-card__lead">
           Один аккаунт для создания шаблонов и подготовки логотипов.
         </p>
-        <form className="auth-form" onSubmit={(event) => void handleSubmit(event)}>
+        <form className="auth-form" onSubmit={event => void handleSubmit(event)}>
           <label className="field" htmlFor="register-email">
             <span className="field__label">Электронная почта</span>
             <input

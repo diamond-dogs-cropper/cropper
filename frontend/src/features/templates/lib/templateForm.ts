@@ -22,11 +22,11 @@ export const uploadFormats: { label: string; value: UploadFormat }[] = [
   { label: 'JPG', value: 'jpg' },
 ]
 
-export const sizePresets: [number, number][] = [
-  [400, 220],
-  [300, 300],
-  [512, 512],
-  [1200, 400],
+export const sizePresets = [
+  { height: 220, width: 400 },
+  { height: 300, width: 300 },
+  { height: 512, width: 512 },
+  { height: 400, width: 1200 },
 ]
 
 export type PaddingMode = 'all' | 'sides'
@@ -147,17 +147,17 @@ export function validate(values: FormValues): { errors: FormErrors; input: Templ
   return {
     errors,
     input: {
-      background_color: values.transparent ? null : values.backgroundColor.toUpperCase(),
-      description: values.description.trim(),
       height,
       name,
+      width,
+      background_color: values.transparent ? null : values.backgroundColor.toUpperCase(),
+      description: values.description.trim(),
       output_format: values.outputFormat,
       padding_bottom: padding.bottom,
       padding_left: padding.left,
       padding_right: padding.right,
       padding_top: padding.top,
       upload_formats: values.uploadFormats,
-      width,
     },
   }
 }

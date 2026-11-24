@@ -34,7 +34,7 @@ import {
   getFormatLabel,
 } from '../../../features/templates/lib/templateText'
 import type { Logo, Template } from '../../../features/templates/model/templates.types'
-import { ApiError } from '../../../shared/api/apiClient'
+import { ApiError, HTTP_NOT_FOUND } from '../../../shared/api/apiClient'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { Brand } from '../../../shared/ui/Brand'
 import { FormField } from '../../../shared/ui/FormField'
@@ -43,12 +43,13 @@ import { Tour, type TourHint } from './Tour'
 import { LogoCanvas } from './LogoCanvas'
 import { SentStep } from './SentStep'
 
-type LoadState = { templateId: string } & (
+type LoadStatus =
   | { status: 'loading' }
   | { status: 'ready'; template: Template }
   | { message: string; status: 'error' }
   | { message: string; status: 'missing' }
-)
+
+type LoadState = { templateId: string } & LoadStatus
 
 const EDITOR_HINTS: TourHint[] = [
   {
@@ -144,13 +145,13 @@ export function Component() {
 
     getPublicTemplate(templateId)
       .then(
-        (template) => isCurrent && setResult({ status: 'ready', template, templateId }),
+        template => isCurrent && setResult({ status: 'ready', template, templateId }),
       )
       .catch((error: unknown) => {
         if (!isCurrent) {
           return
         }
-        if (error instanceof ApiError && error.status === 404) {
+        if (error instanceof ApiError && error.status === HTTP_NOT_FOUND) {
           setResult({
             message: 'Проверьте адрес ссылки или попросите организатора прислать новую.',
             status: 'missing',
@@ -337,7 +338,7 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
           <UploadStep
             error={fileError}
             isPreparing={isPreparing}
-            onSelect={(file) => void selectFile(file)}
+            onSelect={file => void selectFile(file)}
             template={template}
           />
         ) : null}
@@ -366,7 +367,7 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
             onCrop={() => setIsCropping(true)}
             onDownload={() => void download()}
             onReplace={replaceFile}
-            onSend={(company) => void sending.send(company, preparePng)}
+            onSend={company => void sending.send(company, preparePng)}
             placement={placement}
             sendError={sending.error}
             isSending={sending.isSending}
@@ -431,14 +432,14 @@ interface UploadStepProps {
 }
 
 function UploadStep({ error, isPreparing, onSelect, template }: Readonly<UploadStepProps>) {
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
+  const handleChange: ChangeEventHandler<HTMLInputElement> = event => {
     const file = event.target.files?.[0]
     if (file) {
       onSelect(file)
     }
     event.target.value = ''
   }
-  const handleDrop: DragEventHandler<HTMLLabelElement> = (event) => {
+  const handleDrop: DragEventHandler<HTMLLabelElement> = event => {
     event.preventDefault()
     const file = event.dataTransfer.files[0]
     if (file) {
@@ -446,7 +447,7 @@ function UploadStep({ error, isPreparing, onSelect, template }: Readonly<UploadS
     }
   }
   const formats = describeUploadFormats(template.upload_formats)
-  const transparentFormats = template.upload_formats.filter((format) => format !== 'jpg')
+  const transparentFormats = template.upload_formats.filter(format => format !== 'jpg')
 
   return (
     <div className="recipient-grid">
@@ -457,7 +458,7 @@ function UploadStep({ error, isPreparing, onSelect, template }: Readonly<UploadS
           <label
             className={error ? 'recipient-dropzone recipient-dropzone--error' : 'recipient-dropzone'}
             htmlFor="recipient-logo"
-            onDragOver={(event) => event.preventDefault()}
+            onDragOver={event => event.preventDefault()}
             onDrop={handleDrop}
           >
             <input
@@ -529,9 +530,11 @@ interface CropStepProps {
   onReplace: () => void
 }
 
+type CropMode = 'move' | 'ne' | 'nw' | 'se' | 'sw'
+
 interface CropInteraction {
   crop: CropArea
-  mode: 'move' | 'ne' | 'nw' | 'se' | 'sw'
+  mode: CropMode
   startX: number
   startY: number
 }
@@ -542,14 +545,14 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
 
   const beginInteraction = (
     mode: CropInteraction['mode'],
-  ): PointerEventHandler<HTMLElement> => (event) => {
+  ): PointerEventHandler<HTMLElement> => event => {
     event.preventDefault()
     event.stopPropagation()
     viewportRef.current?.setPointerCapture(event.pointerId)
     interaction.current = { crop, mode, startX: event.clientX, startY: event.clientY }
   }
 
-  const handlePointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
+  const handlePointerMove: PointerEventHandler<HTMLDivElement> = event => {
     const active = interaction.current
     const viewport = viewportRef.current
     if (!active || !viewport) {
@@ -631,7 +634,7 @@ function CropStep({ crop, logo, onApply, onChange, onReplace }: Readonly<CropSte
                 width: `${crop.width * 100}%`,
               }}
             >
-              {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
+              {(['nw', 'ne', 'sw', 'se'] as const).map(corner => (
                 <button
                   aria-label={`Изменить рамку: ${corner}`}
                   className={`crop-editor__handle crop-editor__handle--${corner}`}
@@ -695,6 +698,29 @@ interface PlacementStepProps {
   template: Template
 }
 
+interface PlacementGuidesProps {
+  offsetX: number
+  offsetY: number
+  template: Template
+}
+
+function PlacementGuides({ offsetX, offsetY, template }: Readonly<PlacementGuidesProps>) {
+  const centerX = template.padding_left + (template.width - template.padding_left - template.padding_right) / 2
+  const centerY = template.padding_top + (template.height - template.padding_top - template.padding_bottom) / 2
+  return (
+    <>
+      <div
+        className={`placement-plate__guide placement-plate__guide--vertical${offsetX ? '' : ' placement-plate__guide--centered'}`}
+        style={{ left: `${(centerX / template.width) * 100}%` }}
+      />
+      <div
+        className={`placement-plate__guide placement-plate__guide--horizontal${offsetY ? '' : ' placement-plate__guide--centered'}`}
+        style={{ top: `${(centerY / template.height) * 100}%` }}
+      />
+    </>
+  )
+}
+
 function PlacementStep({
   background,
   crop,
@@ -726,7 +752,7 @@ function PlacementStep({
   const offsetY = Math.round((safeHeight - geometry.height) * (placement.y - 0.5))
   const isStretched = logo.sourceFormat !== 'svg' && geometry.width / geometry.sourceWidth > MAX_STRETCH
 
-  const handlePointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
+  const handlePointerDown: PointerEventHandler<HTMLDivElement> = event => {
     event.currentTarget.setPointerCapture(event.pointerId)
     dragStart.current = { placement, x: event.clientX, y: event.clientY }
     setIsDragging(true)
@@ -737,7 +763,7 @@ function PlacementStep({
     setIsDragging(false)
   }
 
-  const handlePointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
+  const handlePointerMove: PointerEventHandler<HTMLDivElement> = event => {
     const start = dragStart.current
     const plate = plateRef.current
     if (!start || !plate) {
@@ -794,18 +820,7 @@ function PlacementStep({
                 top: `${(template.padding_top / template.height) * 100}%`,
               }}
             />
-            {isDragging ? (
-              <>
-                <div
-                  className={`placement-plate__guide placement-plate__guide--vertical${offsetX ? '' : ' placement-plate__guide--centered'}`}
-                  style={{ left: `${((template.padding_left + safeWidth / 2) / template.width) * 100}%` }}
-                />
-                <div
-                  className={`placement-plate__guide placement-plate__guide--horizontal${offsetY ? '' : ' placement-plate__guide--centered'}`}
-                  style={{ top: `${((template.padding_top + safeHeight / 2) / template.height) * 100}%` }}
-                />
-              </>
-            ) : null}
+            {isDragging ? <PlacementGuides offsetX={offsetX} offsetY={offsetY} template={template} /> : null}
           </div>
         </div>
         <div className="recipient-scale" data-tour="scale">
@@ -814,7 +829,7 @@ function PlacementStep({
             id="logo-scale"
             max="100"
             min="20"
-            onChange={(event) => onChange({ ...placement, scale: Number(event.target.value) })}
+            onChange={event => onChange({ ...placement, scale: Number(event.target.value) })}
             type="range"
             value={placement.scale}
           />
@@ -911,7 +926,7 @@ function SendForm({ error, format, isSending, onDownload, onSend }: Readonly<Sen
           id="company"
           maxLength={100}
           name="company"
-          onChange={(event) => setCompany(event.target.value)}
+          onChange={event => setCompany(event.target.value)}
           placeholder="ООО «Ромашка»"
           value={company}
         />
