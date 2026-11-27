@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { routePaths } from '../../../app/router/routePaths'
+import { getSimilarTemplatePath, getTemplatePath, routePaths } from '../../../app/router/routePaths'
 import {
   deleteTemplate,
   getTemplate,
@@ -27,6 +27,7 @@ import {
   ArrowLeftIcon,
   CheckIcon,
   CopyIcon,
+  DuplicateIcon,
   ExternalIcon,
   LockIcon,
   TrashIcon,
@@ -39,7 +40,7 @@ type LoadResult = { id: string } & ({ template: Template } | { message: string }
 export function Component() {
   const { templateId = '' } = useParams()
   const location = useLocation()
-  const { isCreated, routeTemplate } = readRouteState(location.state, templateId)
+  const { created, routeTemplate } = readRouteState(location.state, templateId)
   const [load, setTemplate] = useTemplate(templateId, routeTemplate)
   const [companies, updateCompanies] = useCompanyData(templateId)
 
@@ -64,7 +65,7 @@ export function Component() {
         Мои шаблоны
       </Link>
       <TemplateHero
-        isCreated={isCreated}
+        created={created}
         onChange={setTemplate}
         onInvited={recipient =>
           updateCompanies(data => ({
@@ -79,8 +80,13 @@ export function Component() {
   )
 }
 
+interface CreatedState {
+  companiesFailed: boolean
+  source: { id: string; isOpen: boolean; name: string } | null
+}
+
 interface TemplateHeroProps {
-  isCreated: boolean
+  created: CreatedState | null
   onChange: (template: Template) => void
   onInvited: (recipient: Recipient) => void
   template: Template
@@ -119,7 +125,7 @@ function TemplateSpecs({ template }: Readonly<{ template: Template }>) {
   )
 }
 
-function TemplateHero({ isCreated, onChange, onInvited, template }: Readonly<TemplateHeroProps>) {
+function TemplateHero({ created, onChange, onInvited, template }: Readonly<TemplateHeroProps>) {
   const navigate = useNavigate()
   const [copy, copyLink] = useCopyLink()
   const [isPending, setIsPending] = useState(false)
@@ -170,6 +176,10 @@ function TemplateHero({ isCreated, onChange, onInvited, template }: Readonly<Tem
           {template.is_open ? null : <span className="badge">Сбор закрыт</span>}
         </h1>
         <TemplateSpecs template={template} />
+        <p className="template-hero__hint">
+          Параметры плашки после создания не меняются. Нужны другие —{' '}
+          <Link to={getSimilarTemplatePath(template.id)} viewTransition>создайте похожий шаблон</Link>.
+        </p>
         <div className="share-link">
           <span className="share-link__url">{link}</span>
           <button className="primary-button" onClick={() => void copyLink(link)} type="button">
@@ -179,17 +189,22 @@ function TemplateHero({ isCreated, onChange, onInvited, template }: Readonly<Tem
         </div>
         <InviteForm onInvited={onInvited} template={template} />
         <NotifyToggle onChange={onChange} template={template} />
-        {isCreated && copy === 'idle' ? (
-          <output className="template-hero__notice">
-            Шаблон создан. Скопируйте ссылку и отправьте её компаниям.
-          </output>
-        ) : null}
+        {created ? <CreatedNotice created={created} isCopied={copy !== 'idle'} /> : null}
         {copy === 'failed' ? (
           <p className="form-error" role="alert">Не удалось скопировать. Выделите ссылку вручную.</p>
         ) : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}
       </div>
       <div className="template-hero__actions">
+        <Link
+          aria-label="Создать похожий шаблон"
+          className="icon-button"
+          data-tooltip="Создать похожий шаблон"
+          to={getSimilarTemplatePath(template.id)}
+          viewTransition
+        >
+          <DuplicateIcon />
+        </Link>
         <a
           aria-label="Открыть страницу для компаний"
           className="icon-button"
@@ -221,11 +236,71 @@ function TemplateHero({ isCreated, onChange, onInvited, template }: Readonly<Tem
   )
 }
 
+function CreatedNotice({ created, isCopied }: Readonly<{ created: CreatedState; isCopied: boolean }>) {
+  const { companiesFailed, source } = created
+  const [sourceState, setSourceState] = useState<'open' | 'closing' | 'closed' | 'failed'>('open')
+  const sourceRef = useRef<HTMLOutputElement>(null)
+
+  async function closeSource(id: string) {
+    setSourceState('closing')
+    try {
+      await setTemplateOpen(id, false)
+      setSourceState('closed')
+      requestAnimationFrame(() => sourceRef.current?.focus())
+    } catch {
+      setSourceState('failed')
+    }
+  }
+
+  return (
+    <>
+      {companiesFailed ? (
+        <p className="form-error" role="alert">
+          Шаблон создан, но компании перенести не удалось. Добавьте их вручную.
+        </p>
+      ) : null}
+      {source?.isOpen ? (
+        <output className="template-hero__source" ref={sourceRef} tabIndex={-1}>
+          {sourceState === 'closed' ? (
+            <>
+              Сбор в «{source.name}» закрыт. Открыть снова можно{' '}
+              <Link to={getTemplatePath(source.id)} viewTransition>на его странице</Link>.
+            </>
+          ) : (
+            <>
+              Старый шаблон «{source.name}» ещё принимает логотипы.{' '}
+              <button
+                className="text-button"
+                disabled={sourceState === 'closing'}
+                onClick={() => void closeSource(source.id)}
+                type="button"
+              >
+                {sourceState === 'closing' ? 'Закрываем…' : 'Закрыть сбор'}
+              </button>
+              {sourceState === 'failed' ? ' Не получилось, попробуйте ещё раз.' : null}
+            </>
+          )}
+        </output>
+      ) : null}
+      {isCopied ? null : (
+        <output className="template-hero__notice">
+          Шаблон создан. Скопируйте ссылку и отправьте её компаниям.
+        </output>
+      )}
+    </>
+  )
+}
+
 function readRouteState(state: unknown, templateId: string) {
-  const routeState = state as { created?: boolean; template?: Template } | null
+  const routeState = state as
+    | ({ created?: boolean; template?: Template } & Partial<CreatedState>)
+    | null
   const routeTemplate = routeState?.template?.id === templateId ? routeState.template : null
-  const isCreated = Boolean(routeState?.created && routeTemplate)
-  return { isCreated, routeTemplate }
+  const created =
+    routeState?.created && routeTemplate
+      ? { companiesFailed: Boolean(routeState.companiesFailed), source: routeState.source ?? null }
+      : null
+  return { created, routeTemplate }
 }
 
 function useTemplate(templateId: string, routeTemplate: Template | null) {

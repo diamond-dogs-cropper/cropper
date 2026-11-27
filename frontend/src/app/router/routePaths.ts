@@ -11,3 +11,7 @@ export const routePaths = {
 export function getTemplatePath(id: string): string {
   return `${routePaths.templates}/${id}`
 }
+
+export function getSimilarTemplatePath(id: string): string {
+  return `${routePaths.templateNew}?from=${id}`
+}

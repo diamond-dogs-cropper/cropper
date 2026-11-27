@@ -145,3 +145,13 @@ export function ChevronDownIcon() {
     </Icon>
   )
 }
+
+export function DuplicateIcon() {
+  return (
+    <Icon>
+      <rect height="12" rx="2" width="14" x="8" y="9" />
+      <path d="M4 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2" />
+      <path d="M15 12v6M12 15h6" />
+    </Icon>
+  )
+}
