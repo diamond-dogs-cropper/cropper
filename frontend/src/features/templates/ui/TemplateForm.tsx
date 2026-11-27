@@ -1,4 +1,4 @@
-import type { SubmitEvent } from 'react'
+import type { ReactNode, SubmitEvent } from 'react'
 import { FormField } from '../../../shared/ui/FormField'
 import { getErrorProps } from '../../../shared/ui/getErrorProps'
 import { SegmentedControl } from '../../../shared/ui/SegmentedControl'
@@ -14,6 +14,7 @@ import { BackgroundField } from './BackgroundField'
 import { PaddingField } from './PaddingField'
 
 interface TemplateFormProps {
+  children?: ReactNode
   error: string | null
   errors: FormErrors
   isPending: boolean
@@ -23,6 +24,7 @@ interface TemplateFormProps {
 }
 
 export function TemplateForm({
+  children,
   error,
   errors,
   isPending,
@@ -160,6 +162,7 @@ export function TemplateForm({
         </div>
       </section>
 
+      {children}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <button className="primary-button" disabled={isPending} type="submit">
         {isPending ? 'Создаём…' : 'Создать шаблон'}

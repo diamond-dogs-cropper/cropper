@@ -70,6 +70,25 @@ export const defaultValues: FormValues = {
   width: '400',
 }
 
+export function toFormValues(template: TemplateInput, name: string): FormValues {
+  const { padding_bottom: bottom, padding_left: left, padding_right: right, padding_top: top } = template
+  const isEven = top === right && top === bottom && top === left
+
+  return {
+    name,
+    backgroundColor: template.background_color ?? DEFAULT_COLOR,
+    description: template.description,
+    height: String(template.height),
+    outputFormat: template.output_format,
+    padding: { bottom: String(bottom), left: String(left), right: String(right), top: String(top) },
+    paddingAll: String(top),
+    paddingMode: isEven ? 'all' : 'sides',
+    transparent: template.background_color === null,
+    uploadFormats: template.upload_formats,
+    width: String(template.width),
+  }
+}
+
 function parseInteger(value: string): number | null {
   return /^\d+$/.test(value.trim()) ? Number(value) : null
 }

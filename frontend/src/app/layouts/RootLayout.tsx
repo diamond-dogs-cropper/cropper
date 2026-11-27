@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, ScrollRestoration, useLocation, useNavigation } from 'react-router-dom'
 import { routePaths } from '../router/routePaths'
 
-function getPageTitle(pathname: string): string {
+function getPageTitle(pathname: string, search: string): string {
   if (pathname === routePaths.home) {
     return 'Cropper — подготовка логотипов'
   }
@@ -13,7 +13,7 @@ function getPageTitle(pathname: string): string {
     return 'Регистрация — Cropper'
   }
   if (pathname === routePaths.templateNew) {
-    return 'Новый шаблон — Cropper'
+    return new URLSearchParams(search).has('from') ? 'Похожий шаблон — Cropper' : 'Новый шаблон — Cropper'
   }
   if (pathname === routePaths.templates) {
     return 'Мои шаблоны — Cropper'
@@ -29,13 +29,13 @@ function getPageTitle(pathname: string): string {
 }
 
 export function RootLayout() {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const navigation = useNavigation()
   const isNavigating = navigation.state !== 'idle'
 
   useEffect(() => {
-    document.title = getPageTitle(pathname)
-  }, [pathname])
+    document.title = getPageTitle(pathname, search)
+  }, [pathname, search])
 
   return (
     <>
