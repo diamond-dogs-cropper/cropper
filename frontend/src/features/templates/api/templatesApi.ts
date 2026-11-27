@@ -58,13 +58,24 @@ export function getArchiveUrl(templateId: string): string {
   return `${TEMPLATES_URL}/${templateId}/logos/archive`
 }
 
-export async function setTemplateOpen(id: string, isOpen: boolean): Promise<Template> {
+async function patchTemplate(
+  id: string,
+  changes: Partial<Pick<Template, 'is_open' | 'notify'>>,
+): Promise<Template> {
   const template = await apiRequest<Template>(`${TEMPLATES_URL}/${id}`, {
-    body: JSON.stringify({ is_open: isOpen }),
+    body: JSON.stringify(changes),
     method: 'PATCH',
   })
   updateSnapshot(template)
   return template
+}
+
+export function setTemplateOpen(id: string, isOpen: boolean): Promise<Template> {
+  return patchTemplate(id, { is_open: isOpen })
+}
+
+export function setTemplateNotify(id: string, notify: boolean): Promise<Template> {
+  return patchTemplate(id, { notify })
 }
 
 export async function deleteTemplate(id: string): Promise<void> {

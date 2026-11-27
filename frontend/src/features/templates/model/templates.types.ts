@@ -33,6 +33,7 @@ export type Template = TemplateInput & {
   created_at: string
   id: string
   is_open: boolean
+  notify: boolean
 }
 
 export type RecipientMark = 'done' | 'skip'

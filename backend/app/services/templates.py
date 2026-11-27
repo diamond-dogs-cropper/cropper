@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import AppError
 from app.models import Template, User
-from app.schemas.template import TemplateIn
+from app.schemas.template import TemplateIn, TemplatePatch
 from app.storage.client import delete_template_logos
 
 
@@ -40,8 +40,9 @@ def get_owned(db: Session, owner: User, template_id: str) -> Template:
     return template
 
 
-def set_open(db: Session, template: Template, is_open: bool) -> Template:
-    template.is_open = is_open
+def update(db: Session, template: Template, patch: TemplatePatch) -> Template:
+    for field, value in patch.model_dump(exclude_none=True).items():
+        setattr(template, field, value)
     db.commit()
     return template
 

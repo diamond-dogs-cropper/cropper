@@ -1,13 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from pydantic import StringConstraints
 
 from app.api.deps import DbSession
 from app.errors import AppError
 from app.schemas.logo import LogoOut
 from app.schemas.template import PublicTemplateOut, RecipientInfo
-from app.services import logos, recipients, templates
+from app.services import logos, notifications, recipients, templates
 
 router = APIRouter(prefix="/public/templates", tags=["public"])
 
@@ -55,8 +55,14 @@ def upload_logo(
     company: Annotated[Company, Query()],
     data: Annotated[bytes, Depends(read_png)],
     db: DbSession,
+    background: BackgroundTasks,
     r: RecipientToken = None,
 ) -> LogoOut:
     template = templates.get_by_id(db, template_id)
     recipient = recipients.find_public(db, template, r)
-    return LogoOut.model_validate(logos.save_png(db, template, company, data, recipient))
+    is_replacement = recipient is not None and recipient.logo_id is not None
+    logo = logos.save_png(db, template, company, data, recipient)
+    if template.notify:
+        # Письмо уходит после ответа: получатель не ждёт SMTP, а ошибка почты не ломает загрузку.
+        background.add_task(notifications.send_logo_notice, template.id, logo.id, is_replacement)
+    return LogoOut.model_validate(logo)

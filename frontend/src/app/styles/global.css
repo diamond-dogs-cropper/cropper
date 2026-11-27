@@ -3234,3 +3234,69 @@ legend.form-field__label {
     width: min(280px, calc(100vw - 48px));
   }
 }
+
+.notify-toggle label {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notify-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.notify-toggle__track {
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  position: relative;
+  background: #c9d2e6;
+  transition: background-color 120ms ease;
+}
+
+.notify-toggle__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgb(39 51 75 / 20%);
+  transition: transform 120ms ease;
+}
+
+.notify-toggle input:checked + .notify-toggle__track {
+  background: var(--accent);
+}
+
+.notify-toggle input:checked + .notify-toggle__track::after {
+  transform: translateX(14px);
+}
+
+.notify-toggle input:focus-visible + .notify-toggle__track {
+  outline: 3px solid rgb(82 104 232 / 30%);
+  outline-offset: 2px;
+}
+
+.notify-toggle input:disabled + .notify-toggle__track {
+  opacity: 0.6;
+}
+
+.notify-toggle__email {
+  color: var(--muted);
+}
+
+.notify-toggle .form-error {
+  margin: 6px 0 0;
+}
