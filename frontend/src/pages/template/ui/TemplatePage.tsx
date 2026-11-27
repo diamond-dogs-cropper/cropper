@@ -18,6 +18,7 @@ import { useCopyLink } from '../../../features/templates/lib/useCopyLink'
 import type { Recipient, Template } from '../../../features/templates/model/templates.types'
 import { CompaniesSection } from '../../../features/templates/ui/companies/CompaniesSection'
 import { InviteForm } from '../../../features/templates/ui/InviteForm'
+import { NotifyToggle } from '../../../features/templates/ui/NotifyToggle'
 import { PlateThumb } from '../../../features/templates/ui/PlateThumb'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { useConfirm } from '../../../shared/ui/ConfirmDialog'
@@ -177,6 +178,7 @@ function TemplateHero({ isCreated, onChange, onInvited, template }: Readonly<Tem
           </button>
         </div>
         <InviteForm onInvited={onInvited} template={template} />
+        <NotifyToggle onChange={onChange} template={template} />
         {isCreated && copy === 'idle' ? (
           <output className="template-hero__notice">
             Шаблон создан. Скопируйте ссылку и отправьте её компаниям.

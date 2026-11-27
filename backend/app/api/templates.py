@@ -13,7 +13,7 @@ from app.schemas.recipient import (
     RecipientPatch,
     RecipientsIn,
 )
-from app.schemas.template import CollectionState, TemplateIn, TemplateOut
+from app.schemas.template import TemplateIn, TemplateOut, TemplatePatch
 from app.services import images, logos, recipients, templates
 
 router = APIRouter(prefix="/templates", tags=["templates"])
@@ -48,11 +48,11 @@ def get_template(template_id: str, user: CurrentUser, db: DbSession) -> Template
 
 
 @router.patch("/{template_id}")
-def set_collection(
-    template_id: str, body: CollectionState, user: CurrentUser, db: DbSession
+def update_template(
+    template_id: str, body: TemplatePatch, user: CurrentUser, db: DbSession
 ) -> TemplateOut:
     template = templates.get_owned(db, user, template_id)
-    return TemplateOut.model_validate(templates.set_open(db, template, body.is_open))
+    return TemplateOut.model_validate(templates.update(db, template, body))
 
 
 @router.delete("/{template_id}", status_code=204)

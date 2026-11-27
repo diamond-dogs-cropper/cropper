@@ -41,7 +41,7 @@ export function InviteForm({ onInvited, template }: Readonly<InviteFormProps>) {
         autoComplete="off"
         name="email"
         onChange={event => setEmail(event.target.value)}
-        placeholder="Пригласить по почте — компания появится в списке ниже"
+        placeholder="Пригласить по почте — добавим в список"
         required
         type="email"
         value={email}

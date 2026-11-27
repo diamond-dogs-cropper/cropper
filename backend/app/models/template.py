@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, func, true
+from sqlalchemy import DateTime, ForeignKey, String, false, func, true
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,4 +29,5 @@ class Template(Base):
     output_format: Mapped[str] = mapped_column(String(4))
     upload_formats: Mapped[list[str]] = mapped_column(ARRAY(String(4)))
     is_open: Mapped[bool] = mapped_column(server_default=true())
+    notify: Mapped[bool] = mapped_column(server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -40,11 +40,13 @@ class TemplateOut(BaseModel):
     output_format: OutputFormat
     upload_formats: list[UploadFormat]
     is_open: bool
+    notify: bool
     created_at: datetime
 
 
-class CollectionState(BaseModel):
-    is_open: bool
+class TemplatePatch(BaseModel):
+    is_open: bool | None = None
+    notify: bool | None = None
 
 
 class RecipientInfo(BaseModel):
