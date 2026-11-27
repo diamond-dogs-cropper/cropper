@@ -31,8 +31,7 @@ def plate_preview(template: LogoTemplate) -> dict[str, int]:
     }
 
 
-def build_invite(template: LogoTemplate, recipient: str) -> EmailMessage:
-    link = f"{settings.public_url.rstrip('/')}/t/{template.id}"
+def build_invite(template: LogoTemplate, recipient: str, link: str) -> EmailMessage:
     subject = f"Загрузите логотип: {template.name}"
     upload_formats = ", ".join(FORMAT_LABELS[item] for item in template.upload_formats)
     description = (

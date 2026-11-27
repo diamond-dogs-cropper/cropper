@@ -34,3 +34,24 @@ export type Template = TemplateInput & {
   id: string
   is_open: boolean
 }
+
+export type RecipientMark = 'done' | 'skip'
+
+export interface Recipient {
+  company: string
+  created_at: string
+  email: string | null
+  id: string
+  invited_at: string | null
+  logo: Logo | null
+  mark: RecipientMark | null
+  note: string
+}
+
+export type RecipientChanges = Partial<Pick<Recipient, 'company' | 'email' | 'mark' | 'note'>> & {
+  logo_id?: string | null
+}
+
+export type PublicTemplate = Template & {
+  recipient: { company: string; logo_sent_at: string | null } | null
+}

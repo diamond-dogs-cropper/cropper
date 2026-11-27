@@ -45,3 +45,12 @@ class TemplateOut(BaseModel):
 
 class CollectionState(BaseModel):
     is_open: bool
+
+
+class RecipientInfo(BaseModel):
+    company: str
+    logo_sent_at: datetime | None
+
+
+class PublicTemplateOut(TemplateOut):
+    recipient: RecipientInfo | None = None

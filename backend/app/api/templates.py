@@ -3,12 +3,18 @@ from urllib.parse import quote
 from fastapi import APIRouter, Response
 
 from app.api.deps import CurrentUser, DbSession
-from app.errors import AppError
 from app.models import Logo, Template
 from app.schemas.invite import InviteIn
 from app.schemas.logo import LogoOut
+from app.schemas.recipient import (
+    InviteBatchIn,
+    InviteBatchOut,
+    RecipientOut,
+    RecipientPatch,
+    RecipientsIn,
+)
 from app.schemas.template import CollectionState, TemplateIn, TemplateOut
-from app.services import images, logos, mail, templates
+from app.services import images, logos, recipients, templates
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
@@ -18,11 +24,11 @@ def attachment(data: bytes, media_type: str, name: str) -> Response:
     return Response(data, media_type=media_type, headers={"Content-Disposition": disposition})
 
 
-def logo_file(logo: Logo, template: Template) -> Response:
+def logo_file(logo: Logo, template: Template, company: str) -> Response:
     return attachment(
         logos.read_file(logo, template),
         images.MEDIA_TYPES[template.output_format],
-        logos.file_name(logo, template),
+        logos.file_name(company, template),
     )
 
 
@@ -54,13 +60,54 @@ def delete_template(template_id: str, user: CurrentUser, db: DbSession) -> None:
     templates.delete(db, templates.get_owned(db, user, template_id))
 
 
-@router.post("/{template_id}/invites", status_code=204)
-def send_invite(template_id: str, body: InviteIn, user: CurrentUser, db: DbSession) -> None:
+@router.post("/{template_id}/invites", status_code=201)
+def send_invite(template_id: str, body: InviteIn, user: CurrentUser, db: DbSession) -> RecipientOut:
     template = templates.get_owned(db, user, template_id)
-    if not template.is_open:
-        message = "Сбор закрыт — откройте его, чтобы пригласить компанию"
-        raise AppError(409, "collection_closed", message)
-    mail.send(mail.build_invite(template, body.email))
+    recipients.ensure_open(template)
+    return RecipientOut.model_validate(recipients.invite_by_email(db, template, str(body.email)))
+
+
+@router.get("/{template_id}/recipients")
+def list_recipients(template_id: str, user: CurrentUser, db: DbSession) -> list[RecipientOut]:
+    template = templates.get_owned(db, user, template_id)
+    return [RecipientOut.model_validate(item) for item in recipients.list_for(db, template)]
+
+
+@router.post("/{template_id}/recipients", status_code=201)
+def add_recipients(
+    template_id: str, body: RecipientsIn, user: CurrentUser, db: DbSession
+) -> list[RecipientOut]:
+    template = templates.get_owned(db, user, template_id)
+    added = recipients.add(db, template, body.items)
+    return [RecipientOut.model_validate(item) for item in added]
+
+
+@router.post("/{template_id}/recipients/invites")
+def invite_recipients(
+    template_id: str, body: InviteBatchIn, user: CurrentUser, db: DbSession
+) -> InviteBatchOut:
+    template = templates.get_owned(db, user, template_id)
+    recipients.ensure_open(template)
+    sent, error = recipients.invite_many(db, template, body.ids)
+    return InviteBatchOut(
+        recipients=[RecipientOut.model_validate(item) for item in sent], error=error
+    )
+
+
+@router.patch("/{template_id}/recipients/{recipient_id}")
+def update_recipient(
+    template_id: str, recipient_id: str, body: RecipientPatch, user: CurrentUser, db: DbSession
+) -> RecipientOut:
+    template = templates.get_owned(db, user, template_id)
+    recipient = recipients.get(db, template, recipient_id)
+    recipients.update(db, template, recipient, body)
+    return RecipientOut.model_validate(recipient)
+
+
+@router.delete("/{template_id}/recipients/{recipient_id}", status_code=204)
+def delete_recipient(template_id: str, recipient_id: str, user: CurrentUser, db: DbSession) -> None:
+    template = templates.get_owned(db, user, template_id)
+    recipients.delete(db, recipients.get(db, template, recipient_id))
 
 
 @router.get("/{template_id}/logos")
@@ -78,7 +125,8 @@ def download_archive(template_id: str, user: CurrentUser, db: DbSession) -> Resp
 @router.get("/{template_id}/logos/{logo_id}/file")
 def download_logo(template_id: str, logo_id: str, user: CurrentUser, db: DbSession) -> Response:
     template = templates.get_owned(db, user, template_id)
-    return logo_file(logos.get(db, template, logo_id), template)
+    logo = logos.get(db, template, logo_id)
+    return logo_file(logo, template, logos.list_names(db, template).get(logo.id, logo.company))
 
 
 @router.delete("/{template_id}/logos/{logo_id}", status_code=204)

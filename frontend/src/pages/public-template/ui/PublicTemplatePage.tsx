@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type SubmitEvent,
 } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../../../app/router/routePaths'
 import { getPublicTemplate, uploadLogo } from '../../../features/templates/api/publicTemplatesApi'
 import {
@@ -33,7 +33,11 @@ import {
   describeUploadFormats,
   getFormatLabel,
 } from '../../../features/templates/lib/templateText'
-import type { Logo, Template } from '../../../features/templates/model/templates.types'
+import type {
+  Logo,
+  PublicTemplate,
+  Template,
+} from '../../../features/templates/model/templates.types'
 import { ApiError, HTTP_NOT_FOUND } from '../../../shared/api/apiClient'
 import { getErrorMessage } from '../../../shared/api/getErrorMessage'
 import { Brand } from '../../../shared/ui/Brand'
@@ -45,7 +49,7 @@ import { SentStep } from './SentStep'
 
 type LoadStatus =
   | { status: 'loading' }
-  | { status: 'ready'; template: Template }
+  | { status: 'ready'; template: PublicTemplate }
   | { message: string; status: 'error' }
   | { message: string; status: 'missing' }
 
@@ -136,6 +140,8 @@ function RecipientPageSkeleton() {
 
 export function Component() {
   const { templateId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const recipientId = searchParams.get('r')
   const [result, setResult] = useState<LoadState | null>(null)
   const load: LoadState =
     result?.templateId === templateId ? result : { status: 'loading', templateId }
@@ -143,7 +149,7 @@ export function Component() {
   useEffect(() => {
     let isCurrent = true
 
-    getPublicTemplate(templateId)
+    getPublicTemplate(templateId, recipientId)
       .then(
         template => isCurrent && setResult({ status: 'ready', template, templateId }),
       )
@@ -169,7 +175,7 @@ export function Component() {
     return () => {
       isCurrent = false
     }
-  }, [templateId])
+  }, [recipientId, templateId])
 
   if (load.status === 'loading') {
     return <RecipientPageSkeleton />
@@ -192,10 +198,17 @@ export function Component() {
     )
   }
 
-  return <RecipientEditor template={load.template} />
+  return <RecipientEditor recipientId={recipientId} template={load.template} />
 }
 
-function RecipientEditor({ template }: Readonly<{ template: Template }>) {
+interface RecipientEditorProps {
+  recipientId: string | null
+  template: PublicTemplate
+}
+
+const sentDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' })
+
+function RecipientEditor({ recipientId, template }: Readonly<RecipientEditorProps>) {
   const [source, setSource] = useState<LoadedLogo | null>(null)
   const [cleaned, setCleaned] = useState<LoadedLogo | null>(null)
   const [backgroundError, setBackgroundError] = useState<string | null>(null)
@@ -206,7 +219,7 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
   const [fileError, setFileError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
-  const sending = useLogoSending(template.id)
+  const sending = useLogoSending(template.id, recipientId)
   const sent = sending.sent
   const selectionId = useRef(0)
   const logo = cleaned ?? source
@@ -329,10 +342,19 @@ function RecipientEditor({ template }: Readonly<{ template: Template }>) {
         <header className="recipient-title">
           <h1>{logo ? 'Разместите и отправьте логотип' : 'Загрузите логотип'}</h1>
           <p className="recipient-title__meta">
-            {template.name} · {template.width} × {template.height} px ·{' '}
-            {getFormatLabel(template.output_format)}
+            {template.name}
+            {template.recipient?.company ? ` · для компании «${template.recipient.company}»` : ''} ·{' '}
+            {template.width} × {template.height} px · {getFormatLabel(template.output_format)}
           </p>
         </header>
+
+        {template.recipient?.logo_sent_at ? (
+          <p className="recipient-resend">
+            Вы уже прислали логотип{' '}
+            {sentDate.format(new Date(template.recipient.logo_sent_at))}. Новый файл заменит
+            прежний — организатор увидит только последний.
+          </p>
+        ) : null}
 
         {logo === null ? (
           <UploadStep
@@ -389,7 +411,7 @@ function useRevokeOnChange(logo: LoadedLogo | null) {
   }, [logo])
 }
 
-function useLogoSending(templateId: string) {
+function useLogoSending(templateId: string, recipientId: string | null) {
   const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [sent, setSent] = useState<Logo | null>(null)
@@ -399,7 +421,7 @@ function useLogoSending(templateId: string) {
     setIsSending(true)
 
     try {
-      setSent(await uploadLogo(templateId, company, await preparePng()))
+      setSent(await uploadLogo(templateId, recipientId, company, await preparePng()))
     } catch (requestError) {
       setError(
         requestError instanceof ApiError
@@ -695,7 +717,7 @@ interface PlacementStepProps {
   onSend: (company: string) => void
   placement: Placement
   sendError: string | null
-  template: Template
+  template: PublicTemplate
 }
 
 interface PlacementGuidesProps {
@@ -884,6 +906,7 @@ function PlacementStep({
       />
       <TemplateRequirements template={template}>
         <SendForm
+          defaultCompany={template.recipient?.company ?? ''}
           error={sendError ?? exportError}
           format={getFormatLabel(template.output_format)}
           isSending={isSending}
@@ -896,6 +919,7 @@ function PlacementStep({
 }
 
 interface SendFormProps {
+  defaultCompany: string
   error: string | null
   format: string
   isSending: boolean
@@ -903,8 +927,9 @@ interface SendFormProps {
   onSend: (company: string) => void
 }
 
-function SendForm({ error, format, isSending, onDownload, onSend }: Readonly<SendFormProps>) {
-  const [company, setCompany] = useState('')
+function SendForm(props: Readonly<SendFormProps>) {
+  const { defaultCompany, error, format, isSending, onDownload, onSend } = props
+  const [company, setCompany] = useState(defaultCompany)
   const [isChecked, setIsChecked] = useState(false)
   const name = company.trim()
   const companyError = isChecked && !name ? 'Укажите название компании' : undefined

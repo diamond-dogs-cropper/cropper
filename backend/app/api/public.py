@@ -6,8 +6,8 @@ from pydantic import StringConstraints
 from app.api.deps import DbSession
 from app.errors import AppError
 from app.schemas.logo import LogoOut
-from app.schemas.template import TemplateOut
-from app.services import logos, templates
+from app.schemas.template import PublicTemplateOut, RecipientInfo
+from app.services import logos, recipients, templates
 
 router = APIRouter(prefix="/public/templates", tags=["public"])
 
@@ -31,9 +31,22 @@ async def read_png(request: Request) -> bytes:
     return bytes(data)
 
 
+RecipientToken = Annotated[str | None, Query(alias="r", max_length=32)]
+
+
 @router.get("/{template_id}")
-def get_template(template_id: str, db: DbSession) -> TemplateOut:
-    return TemplateOut.model_validate(templates.get_by_id(db, template_id))
+def get_template(template_id: str, db: DbSession, r: RecipientToken = None) -> PublicTemplateOut:
+    template = templates.get_by_id(db, template_id)
+    recipient = recipients.find_public(db, template, r)
+    info = (
+        RecipientInfo(
+            company=recipient.company,
+            logo_sent_at=recipient.logo.created_at if recipient.logo else None,
+        )
+        if recipient
+        else None
+    )
+    return PublicTemplateOut.model_validate(template).model_copy(update={"recipient": info})
 
 
 @router.post("/{template_id}/logos", status_code=201)
@@ -42,5 +55,8 @@ def upload_logo(
     company: Annotated[Company, Query()],
     data: Annotated[bytes, Depends(read_png)],
     db: DbSession,
+    r: RecipientToken = None,
 ) -> LogoOut:
-    return LogoOut.model_validate(logos.save_png(db, template_id, company, data))
+    template = templates.get_by_id(db, template_id)
+    recipient = recipients.find_public(db, template, r)
+    return LogoOut.model_validate(logos.save_png(db, template, company, data, recipient))

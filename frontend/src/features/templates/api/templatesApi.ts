@@ -1,5 +1,5 @@
 import { apiRequest } from '../../../shared/api/apiClient'
-import type { Logo, Template, TemplateInput } from '../model/templates.types'
+import type { Logo, Recipient, Template, TemplateInput } from '../model/templates.types'
 
 const TEMPLATES_URL = '/api/templates'
 let templatesSnapshot: Template[] | null = null
@@ -74,8 +74,8 @@ export async function deleteTemplate(id: string): Promise<void> {
   }
 }
 
-export function sendInvite(templateId: string, email: string): Promise<void> {
-  return apiRequest<undefined>(`${TEMPLATES_URL}/${templateId}/invites`, {
+export function sendInvite(templateId: string, email: string): Promise<Recipient> {
+  return apiRequest<Recipient>(`${TEMPLATES_URL}/${templateId}/invites`, {
     body: JSON.stringify({ email }),
     method: 'POST',
   })
